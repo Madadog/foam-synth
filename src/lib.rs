@@ -1,6 +1,6 @@
 use nih_plug::prelude::*;
-use voice::VoiceList;
 use std::sync::Arc;
+use voice::{VoiceList, OscParams};
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -39,6 +39,44 @@ struct SynthPluginParams {
 
     #[id = "usemid"]
     pub use_midi: BoolParam,
+
+    #[id = "osc1_amp"]
+    pub osc1_amp: FloatParam,
+    #[id = "osc1_coarse"]
+    pub osc1_coarse: FloatParam,
+    #[id = "osc1_fine"]
+    pub osc1_fine: FloatParam,
+    #[id = "osc1_freq_mult"]
+    pub osc1_freq_mult: FloatParam,
+    #[id = "osc1_freq_div"]
+    pub osc1_freq_div: FloatParam,
+    #[id = "osc1_attack"]
+    pub osc1_attack: FloatParam,
+    #[id = "osc1_decay"]
+    pub osc1_decay: FloatParam,
+    #[id = "osc1_sustain"]
+    pub osc1_sustain: FloatParam,
+    #[id = "osc1_release"]
+    pub osc1_release: FloatParam,
+
+    #[id = "osc2_amp"]
+    pub osc2_amp: FloatParam,
+    #[id = "osc2_coarse"]
+    pub osc2_coarse: FloatParam,
+    #[id = "osc2_fine"]
+    pub osc2_fine: FloatParam,
+    #[id = "osc2_freq_mult"]
+    pub osc2_freq_mult: FloatParam,
+    #[id = "osc2_freq_div"]
+    pub osc2_freq_div: FloatParam,
+    #[id = "osc2_attack"]
+    pub osc2_attack: FloatParam,
+    #[id = "osc2_decay"]
+    pub osc2_decay: FloatParam,
+    #[id = "osc2_sustain"]
+    pub osc2_sustain: FloatParam,
+    #[id = "osc2_release"]
+    pub osc2_release: FloatParam,
 }
 
 impl Default for SynthPlugin {
@@ -95,7 +133,166 @@ impl Default for SynthPluginParams {
             // displayed as if it were rounded. This formatter also includes the unit.
             .with_value_to_string(formatters::v2s_f32_hz_then_khz(0))
             .with_string_to_value(formatters::s2v_f32_hz_then_khz()),
-            use_midi: BoolParam::new("Use MIDI", false),
+            use_midi: BoolParam::new("Use MIDI", true),
+            osc1_amp: FloatParam::new(
+                "Osc1 Amp",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            osc1_coarse: FloatParam::new(
+                "Osc1 Coarse",
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc1_fine: FloatParam::new(
+                "Osc1 Fine",
+                0.0,
+                FloatRange::Linear {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            osc1_freq_mult: FloatParam::new(
+                "Osc1 Freq Mult",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc1_freq_div: FloatParam::new(
+                "Osc1 Freq Div",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc1_attack: FloatParam::new(
+                "Osc1 Attack",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
+            osc1_decay: FloatParam::new(
+                "Osc1 Decay",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
+            osc1_sustain: FloatParam::new(
+                "Osc1 Sustain",
+                1.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                }
+            ),
+            osc1_release: FloatParam::new(
+                "Osc1 Release",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
+
+            osc2_amp: FloatParam::new(
+                "Osc2 Amp",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            osc2_coarse: FloatParam::new(
+                "Osc2 Coarse",
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc2_fine: FloatParam::new(
+                "Osc2 Fine",
+                0.0,
+                FloatRange::Linear {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            osc2_freq_mult: FloatParam::new(
+                "Osc2 Freq Mult",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc2_freq_div: FloatParam::new(
+                "Osc2 Freq Div",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc2_attack: FloatParam::new(
+                "Osc2 Attack",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
+            osc2_decay: FloatParam::new(
+                "Osc2 Decay",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
+            osc2_sustain: FloatParam::new(
+                "Osc2 Sustain",
+                1.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                }
+            ),
+            osc2_release: FloatParam::new(
+                "Osc2 Release",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ).with_unit("s"),
         }
     }
 }
@@ -139,7 +336,6 @@ impl Plugin for SynthPlugin {
     const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
     const SAMPLE_ACCURATE_AUTOMATION: bool = true;
 
-
     // If the plugin can send or receive SysEx messages, it can define a type to wrap around those
     // messages here. The type implements the `SysExMessage` trait, which allows conversion to and
     // from plain byte buffers.
@@ -180,50 +376,60 @@ impl Plugin for SynthPlugin {
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         let mut next_event = context.next_event();
+        let params = OscParams {
+            sample_rate: self.sample_rate,
+            coarse: self.params.osc1_coarse.value(),
+            fine: self.params.osc1_fine.value(),
+            frequency_mult: self.params.osc1_freq_mult.value() / self.params.osc1_freq_div.value(),
+            attack: self.params.osc1_attack.value(),
+            decay: self.params.osc1_decay.value(),
+            sustain: self.params.osc1_sustain.value(),
+            release: self.params.osc1_release.value(),
+        };
+        self.voices.update(&params);
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
             let gain = self.params.gain.smoothed.next();
 
-            // This plugin can be either triggered by MIDI or controleld by a parameter
-            let sine = if self.params.use_midi.value() {
-                // Act on the next MIDI event
-                while let Some(event) = next_event {
-                    if event.timing() > sample_id as u32 {
-                        break;
-                    }
-
-                    match event {
-                        NoteEvent::NoteOn { note, velocity, .. } => {
-                            self.midi_note_id = note;
-                            self.midi_note_freq = util::midi_note_to_freq(note);
-                            self.midi_note_gain.set_target(self.sample_rate, velocity);
-                        }
-                        NoteEvent::NoteOff { note, .. } if note == self.midi_note_id => {
-                            self.midi_note_gain.set_target(self.sample_rate, 0.0);
-                        }
-                        NoteEvent::PolyPressure { note, pressure, .. }
-                            if note == self.midi_note_id =>
-                        {
-                            self.midi_note_gain.set_target(self.sample_rate, pressure);
-                        }
-                        _ => (),
-                    }
-
-                    next_event = context.next_event();
+            while let Some(event) = next_event {
+                if event.timing() >= sample_id as u32 {
+                    break;
                 }
 
-                // This gain envelope prevents clicks with new notes and with released notes
-                self.calculate_sine(self.midi_note_freq) * self.midi_note_gain.next() * 0.5
+                match event {
+                    NoteEvent::NoteOn { note, velocity, .. } => {
+                        println!("Note on: {}", note);
+                        self.midi_note_id = note;
+                        self.midi_note_freq = util::midi_note_to_freq(note);
+                        self.midi_note_gain.set_target(self.sample_rate, velocity);
+                        self.voices.add_voice(note, &params);
+                    }
+                    NoteEvent::NoteOff { note, .. } => {
+                        println!("Note off: {}", note);
+                        self.voices.release_voice(note, &params);
+                    }
+                    NoteEvent::PolyPressure { note, pressure, .. } if note == self.midi_note_id => {
+                        self.midi_note_gain.set_target(self.sample_rate, pressure);
+                    }
+                    _ => (),
+                }
+
+                next_event = context.next_event();
+            }
+
+            // This plugin can be either triggered by MIDI or controleld by a parameter
+            let output = if self.params.use_midi.value() {
+                self.voices.play(&params)
             } else {
                 let frequency = self.params.frequency.smoothed.next();
                 self.calculate_sine(frequency)
-            };
+            } * self.params.osc1_amp.smoothed.next() / 100.0;
 
             for sample in channel_samples {
-                *sample = sine * util::db_to_gain_fast(gain);
+                *sample = output * util::db_to_gain_fast(gain);
             }
         }
-
+        self.voices.remove_voices(&params);
         ProcessStatus::KeepAlive
     }
 }
