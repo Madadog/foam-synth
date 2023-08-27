@@ -12,20 +12,6 @@ struct SynthPlugin {
     params: Arc<SynthPluginParams>,
     sample_rate: f32,
 
-    /// The current phase of the sine wave, always kept between in `[0, 1]`.
-    phase: f32,
-
-    /// The MIDI note ID of the active note, if triggered by MIDI.
-    midi_note_id: u8,
-    /// The frequency if the active note, if triggered by MIDI.
-    midi_note_freq: f32,
-    /// A simple attack and release envelope to avoid clicks. Controlled through velocity and
-    /// aftertouch.
-    ///
-    /// Smoothing is built into the parameters, but you can also use them manually if you need to
-    /// smooth soemthing that isn't a parameter.
-    midi_note_gain: Smoother<f32>,
-
     voices: VoiceList,
 }
 
@@ -33,12 +19,13 @@ struct SynthPlugin {
 struct SynthPluginParams {
     #[id = "gain"]
     pub gain: FloatParam,
+    #[id = "octave_multiplier"]
+    pub octave_stretch: FloatParam,
 
-    #[id = "freq"]
-    pub frequency: FloatParam,
-
-    #[id = "usemid"]
-    pub use_midi: BoolParam,
+    #[id = "mod_osc2_x_osc1"]
+    pub mod_osc2_x_osc1: FloatParam,
+    #[id = "mod_osc1_x_osc2"]
+    pub mod_osc1_x_osc2: FloatParam,
 
     #[id = "osc1_amp"]
     pub osc1_amp: FloatParam,
@@ -60,6 +47,10 @@ struct SynthPluginParams {
     pub osc1_release: FloatParam,
     #[id = "osc1_feedback"]
     pub osc1_feedback: FloatParam,
+    #[id = "osc1_velocity_sensitivity"]
+    pub osc1_velocity_sensitivity: FloatParam,
+    #[id = "osc1_keyscaling"]
+    pub osc1_keyscaling: FloatParam,
 
     #[id = "osc2_amp"]
     pub osc2_amp: FloatParam,
@@ -81,6 +72,10 @@ struct SynthPluginParams {
     pub osc2_release: FloatParam,
     #[id = "osc2_feedback"]
     pub osc2_feedback: FloatParam,
+    #[id = "osc2_velocity_sensitivity"]
+    pub osc2_velocity_sensitivity: FloatParam,
+    #[id = "osc2_keyscaling"]
+    pub osc2_keyscaling: FloatParam,
 }
 
 impl Default for SynthPlugin {
@@ -88,10 +83,6 @@ impl Default for SynthPlugin {
         Self {
             params: Arc::new(SynthPluginParams::default()),
             sample_rate: 1.0,
-            phase: 0.0,
-            midi_note_id: 0,
-            midi_note_freq: 1.0,
-            midi_note_gain: Smoother::new(SmoothingStyle::Linear(5.0)),
             voices: VoiceList::new(),
         }
     }
@@ -105,13 +96,13 @@ impl Default for SynthPluginParams {
             // as decibels is easier to work with, but requires a conversion for every sample.
             gain: FloatParam::new(
                 "Gain",
-                util::db_to_gain(0.0),
+                util::db_to_gain(-12.0),
                 FloatRange::Skewed {
-                    min: util::db_to_gain(-30.0),
-                    max: util::db_to_gain(30.0),
+                    min: util::db_to_gain(-70.0),
+                    max: util::db_to_gain(24.0),
                     // This makes the range appear as if it was linear when displaying the values as
                     // decibels
-                    factor: FloatRange::gain_skew_factor(-30.0, 30.0),
+                    factor: FloatRange::gain_skew_factor(-70.0, 24.0),
                 },
             )
             // Because the gain parameter is stored as linear gain instead of storing the value as
@@ -123,28 +114,31 @@ impl Default for SynthPluginParams {
             // `.with_step_size(0.1)` function to get internal rounding.
             .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
-            frequency: FloatParam::new(
-                "Frequency",
-                420.0,
-                FloatRange::Skewed {
-                    min: 1.0,
-                    max: 20_000.0,
-                    factor: FloatRange::skew_factor(-2.0),
-                },
-            )
-            .with_smoother(SmoothingStyle::Linear(10.0))
-            // We purposely don't specify a step size here, but the parameter should still be
-            // displayed as if it were rounded. This formatter also includes the unit.
-            .with_value_to_string(formatters::v2s_f32_hz_then_khz(0))
-            .with_string_to_value(formatters::s2v_f32_hz_then_khz()),
-            use_midi: BoolParam::new("Use MIDI", true),
+            octave_stretch: FloatParam::new(
+                "Octave Stretch",
+                1.0,
+                FloatRange::Linear {
+                    min: 0.995,
+                    max: 1.005,
+                }
+            ),
             osc1_amp: FloatParam::new(
                 "Osc1 Amp",
-                0.0,
+                100.0,
                 FloatRange::Linear {
                     min: 0.0,
                     max: 100.0,
                 },
+            ),
+            mod_osc2_x_osc1: FloatParam::new(
+                "Mod Osc2 X Osc1",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc1_x_osc2: FloatParam::new(
+                "Mod Osc1 X Osc2",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc1_coarse: FloatParam::new(
                 "Osc1 Coarse",
@@ -219,6 +213,22 @@ impl Default for SynthPluginParams {
             .with_unit("s"),
             osc1_feedback: FloatParam::new(
                 "Osc1 Feedback",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc1_velocity_sensitivity: FloatParam::new(
+                "Osc1 Velocity Sens.",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc1_keyscaling: FloatParam::new(
+                "Osc1 Keyscaling",
                 0.0,
                 FloatRange::Linear {
                     min: -1.0,
@@ -313,21 +323,23 @@ impl Default for SynthPluginParams {
                     max: 1.0,
                 },
             ),
+            osc2_velocity_sensitivity: FloatParam::new(
+                "Osc2 Velocity Sens.",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                }
+            ),
+            osc2_keyscaling: FloatParam::new(
+                "Osc2 Keyscaling",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                }
+            )
         }
-    }
-}
-
-impl SynthPlugin {
-    fn calculate_sine(&mut self, frequency: f32) -> f32 {
-        let phase_delta = frequency / self.sample_rate;
-        let sine = (self.phase * std::f32::consts::TAU).sin();
-
-        self.phase += phase_delta;
-        if self.phase >= 1.0 {
-            self.phase -= 1.0;
-        }
-
-        sine
     }
 }
 
@@ -382,12 +394,7 @@ impl Plugin for SynthPlugin {
         true
     }
 
-    fn reset(&mut self) {
-        self.phase = 0.0;
-        self.midi_note_id = 0;
-        self.midi_note_freq = 1.0;
-        self.midi_note_gain.reset(0.0);
-    }
+    fn reset(&mut self) {}
 
     fn process(
         &mut self,
@@ -398,7 +405,7 @@ impl Plugin for SynthPlugin {
         let mut next_event = context.next_event();
         let params = [
             OscParams {
-                amp: self.params.osc1_amp.value() / 100.0,
+                output_gain: self.params.osc1_amp.value() / 100.0,
                 sample_rate: self.sample_rate,
                 coarse: self.params.osc1_coarse.value(),
                 fine: self.params.osc1_fine.value(),
@@ -408,10 +415,14 @@ impl Plugin for SynthPlugin {
                 decay: self.params.osc1_decay.value(),
                 sustain: self.params.osc1_sustain.value(),
                 release: self.params.osc1_release.value(),
-                feedback: self.params.osc1_feedback.value().signum() * self.params.osc1_feedback.value().powi(2),
+                feedback: self.params.osc1_feedback.value().signum()
+                    * self.params.osc1_feedback.value().powi(2),
+                velocity_sensitivity: self.params.osc1_velocity_sensitivity.value(),
+                keyscaling: self.params.osc1_keyscaling.value(),
+                octave_stretch: self.params.octave_stretch.value(),
             },
             OscParams {
-                amp: self.params.osc2_amp.value() / 100.0,
+                output_gain: self.params.osc2_amp.value() / 100.0,
                 sample_rate: self.sample_rate,
                 coarse: self.params.osc2_coarse.value(),
                 fine: self.params.osc2_fine.value(),
@@ -421,33 +432,36 @@ impl Plugin for SynthPlugin {
                 decay: self.params.osc2_decay.value(),
                 sustain: self.params.osc2_sustain.value(),
                 release: self.params.osc2_release.value(),
-                feedback: self.params.osc2_feedback.value().signum() * self.params.osc2_feedback.value().powi(2),
+                feedback: self.params.osc2_feedback.value().signum()
+                    * self.params.osc2_feedback.value().powi(2),
+                velocity_sensitivity: self.params.osc2_velocity_sensitivity.value(),
+                keyscaling: self.params.osc2_keyscaling.value(),
+                octave_stretch: self.params.octave_stretch.value(),
             },
         ];
+        let pm_matrix = [
+            self.params.mod_osc2_x_osc1.value() * 3.0,
+            self.params.mod_osc1_x_osc2.value() * 3.0,
+        ];
         self.voices.update(&params);
+        let block_size = buffer.samples();
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
             let gain = self.params.gain.smoothed.next();
 
             while let Some(event) = next_event {
-                if event.timing() >= sample_id as u32 {
+                if event.timing() != sample_id as u32 {
+                    // println!("Event at {sample_id}: {:?}", event);
                     break;
                 }
 
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
-                        println!("Note on: {}", note);
-                        self.midi_note_id = note;
-                        self.midi_note_freq = util::midi_note_to_freq(note);
-                        self.midi_note_gain.set_target(self.sample_rate, velocity);
-                        self.voices.add_voice(note, &params);
+                        self.voices.add_voice(note, &params, velocity);
                     }
                     NoteEvent::NoteOff { note, .. } => {
-                        println!("Note off: {}", note);
+                        // println!("Note off at {}/{sample_id}: {}", event.timing(), note);
                         self.voices.release_voice(note, &params);
-                    }
-                    NoteEvent::PolyPressure { note, pressure, .. } if note == self.midi_note_id => {
-                        self.midi_note_gain.set_target(self.sample_rate, pressure);
                     }
                     _ => (),
                 }
@@ -455,13 +469,7 @@ impl Plugin for SynthPlugin {
                 next_event = context.next_event();
             }
 
-            // This plugin can be either triggered by MIDI or controleld by a parameter
-            let output = if self.params.use_midi.value() {
-                self.voices.play(&params)
-            } else {
-                let frequency = self.params.frequency.smoothed.next();
-                self.calculate_sine(frequency)
-            };
+            let output = self.voices.play(&params, pm_matrix);
 
             for sample in channel_samples {
                 *sample = output * util::db_to_gain_fast(gain);
