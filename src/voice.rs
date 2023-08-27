@@ -6,7 +6,7 @@ impl VoiceList {
     pub fn new() -> Self {
         Self { voices: [None; 32] }
     }
-    pub fn play(&mut self, params: &[OscParams], pm_matrix: [f32; 2]) -> f32 {
+    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
         self.voices
             .iter_mut()
             .filter_map(|voice| voice.as_mut())
@@ -50,19 +50,29 @@ impl VoiceList {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Voice {
-    oscillators: [Oscillator; 2],
+    oscillators: [Oscillator; 4],
     midi_id: u8,
 }
 impl Voice {
-    pub fn play(&mut self, params: &[OscParams], mut pm_matrix: [f32; 2]) -> f32 {
-        pm_matrix
-            .iter_mut()
-            .zip(self.oscillators.iter().rev())
-            .for_each(|(amt, osc)| *amt = *amt * osc.previous());
+    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
+        let matrix = [
+            pm_matrix[0][0] * self.oscillators[1].previous()
+                + pm_matrix[0][1] * self.oscillators[2].previous()
+                + pm_matrix[0][2] * self.oscillators[3].previous(),
+            pm_matrix[1][0] * self.oscillators[0].previous()
+                + pm_matrix[1][1] * self.oscillators[2].previous()
+                + pm_matrix[1][2] * self.oscillators[3].previous(),
+            pm_matrix[2][0] * self.oscillators[0].previous()
+                + pm_matrix[2][1] * self.oscillators[1].previous()
+                + pm_matrix[2][2] * self.oscillators[3].previous(),
+            pm_matrix[3][0] * self.oscillators[0].previous()
+                + pm_matrix[3][1] * self.oscillators[1].previous()
+                + pm_matrix[3][2] * self.oscillators[2].previous(),
+        ];
         self.oscillators
             .iter_mut()
             .zip(params.iter())
-            .zip(pm_matrix)
+            .zip(matrix)
             .map(|((v, params), pm)| v.step_with_envelope(params, pm))
             .sum()
     }
@@ -71,6 +81,8 @@ impl Voice {
             oscillators: [
                 Oscillator::new(midi_id, &params[0], velocity),
                 Oscillator::new(midi_id, &params[1], velocity),
+                Oscillator::new(midi_id, &params[2], velocity),
+                Oscillator::new(midi_id, &params[3], velocity),
             ],
             midi_id,
         }
@@ -158,8 +170,10 @@ impl Oscillator {
         .max(0.0)
     }
     fn get_pitch(midi_id: u8, params: &OscParams) -> f32 {
-        2.0f32.powf((midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0) / (12.0 / params.octave_stretch))
-            * 440.0
+        2.0f32.powf(
+            (midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0)
+                / (12.0 / params.octave_stretch),
+        ) * 440.0
             * params.frequency_mult
     }
     fn update_pitch(&mut self, params: &OscParams) {
