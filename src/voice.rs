@@ -1,25 +1,26 @@
 pub struct VoiceList {
-    voices: [Option<Oscillator>; 16],
+    voices: [Option<Voice>; 32],
 }
 
 impl VoiceList {
     pub fn new() -> Self {
-        Self { voices: [None; 16] }
+        Self { voices: [None; 32] }
     }
-    pub fn play(&mut self, params: &OscParams) -> f32 {
+    pub fn play(&mut self, params: &[OscParams]) -> f32 {
         self.voices
             .iter_mut()
-            .map(|v| v.as_mut().map(|v| v.step_with_envelope(params)).unwrap_or(0.0))
+            .filter_map(|voice| voice.as_mut())
+            .map(|v| v.play(params))
             .sum()
     }
-    pub fn add_voice(&mut self, note: u8, params: &OscParams) {
+    pub fn add_voice(&mut self, note: u8, params: &[OscParams]) {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
-            *voice = Some(Oscillator::new(note, params));
+            *voice = Some(Voice::new(note, params));
         } else {
-            *self.voices.get_mut(0).unwrap() = Some(Oscillator::new(note, params));
+            *self.voices.get_mut(note as usize % 16).unwrap() = Some(Voice::new(note, params));
         }
     }
-    pub fn release_voice(&mut self, note: u8, params: &OscParams) {
+    pub fn release_voice(&mut self, note: u8, params: &[OscParams]) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 if voice.midi_id == note {
@@ -28,7 +29,7 @@ impl VoiceList {
             }
         }
     }
-    pub fn remove_voices(&mut self, params: &OscParams) {
+    pub fn remove_voices(&mut self, params: &[OscParams]) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 if voice.is_done(params) {
@@ -37,50 +38,58 @@ impl VoiceList {
             }
         }
     }
-    pub fn update(&mut self, params: &OscParams) {
+    pub fn update(&mut self, params: &[OscParams]) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
-                voice.update_pitch(params);
+                voice.update(params);
             }
         }
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct Voice {
     oscillators: [Oscillator; 2],
+    midi_id: u8,
 }
 impl Voice {
     pub fn play(&mut self, params: &[OscParams]) -> f32 {
         self.oscillators
             .iter_mut()
             .zip(params.iter())
-            .map(|(v, param)| v.step_with_envelope(param))
+            .map(|(v, params)| v.step_with_envelope(params))
             .sum()
     }
-    pub fn new(note: u8, params1: &OscParams, params2: &OscParams) -> Self {
+    pub fn new(midi_id: u8, params: &[OscParams]) -> Self {
         Self {
             oscillators: [
-                Oscillator::new(note, params1),
-                Oscillator::new(note, params2),
-            ]
+                Oscillator::new(midi_id, &params[0]),
+                Oscillator::new(midi_id, &params[1]),
+            ],
+            midi_id,
         }
     }
-    pub fn release_voice(&mut self, note: u8, params: &OscParams) {
-        for osc in self.oscillators.iter_mut() {
-            if osc.midi_id == note {
-                osc.release(params);
-            }
+    pub fn release(&mut self, params: &[OscParams]) {
+        for (osc, params) in self.oscillators.iter_mut().zip(params.iter()) {
+            osc.release(params);
         }
     }
-    pub fn is_done(&mut self, params: &OscParams) -> bool {
-        self.oscillators.iter().any(|f| f.is_done(params))
+    pub fn is_done(&mut self, params: &[OscParams]) -> bool {
+        self.oscillators
+            .iter()
+            .zip(params.iter())
+            .all(|(osc, params)| osc.is_done(params))
     }
-    pub fn update(&mut self, params: &OscParams) {
-        self.oscillators.iter_mut().for_each(|v| v.update_pitch(params));
+    pub fn update(&mut self, params: &[OscParams]) {
+        self.oscillators
+            .iter_mut()
+            .zip(params.iter())
+            .for_each(|(osc, params)| osc.update_pitch(params));
     }
 }
 
 pub struct OscParams {
+    pub amp: f32,
     pub sample_rate: f32,
     pub coarse: f32,
     pub fine: f32,
@@ -89,9 +98,10 @@ pub struct OscParams {
     pub decay: f32,
     pub sustain: f32,
     pub release: f32,
+    pub feedback: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Oscillator {
     frequency: f32,
     midi_id: u8,
@@ -99,13 +109,15 @@ pub struct Oscillator {
     time: u32,
     release_time: Option<u32>,
     release_level: f32,
+    previous_output: [f32; 2],
 }
 
 impl Oscillator {
     fn new(midi_id: u8, params: &OscParams) -> Self {
         let frequency = 2.0f32
             .powf((midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0) / 12.0)
-            * 440.0 * params.frequency_mult;
+            * 440.0
+            * params.frequency_mult;
         Self {
             frequency,
             midi_id,
@@ -113,32 +125,47 @@ impl Oscillator {
             time: 0,
             release_time: None,
             release_level: 0.0,
+            previous_output: [0.0; 2],
         }
     }
     fn envelope(&self, params: &OscParams) -> f32 {
         let time = self.time as f32 / params.sample_rate;
         if let Some(released_time) = self.released_time() {
             let delta = released_time as f32 / params.sample_rate;
-            self.release_level * (1.0 - (delta as f32 / params.release)).powi(2)
+            self.release_level * (1.0 - (delta as f32 / params.release)).max(0.0).powi(2)
         } else if time < params.attack {
             time / params.attack
         } else if time < params.attack + params.decay {
             (1.0 - ((time - params.attack) / params.decay)).powi(2) * (1.0 - params.sustain)
+                + params.sustain
         } else {
             params.sustain
-        }.min(1.0).max(0.0)
+        }
+        .max(0.0)
     }
     fn update_pitch(&mut self, params: &OscParams) {
         self.frequency = 2.0f32
-        .powf((self.midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0) / 12.0)
-        * 440.0 * params.frequency_mult;
+            .powf((self.midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0) / 12.0)
+            * 440.0
+            * params.frequency_mult;
     }
     fn step(&mut self, params: &OscParams) -> f32 {
         self.time += 1;
-        self.calculate_sine(Oscillator::calculate_delta(self.frequency, params.sample_rate))
+        // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
+        let prev = (self.previous_output[0] + self.previous_output[1]) / 2.0;
+        let feedback = if params.feedback.is_sign_negative() {
+            prev.powi(2)
+        } else {
+            prev
+        } * params.feedback.abs();
+        let phase = self.phase + feedback;
+        self.previous_output[1] = self.previous_output[0];
+        self.previous_output[0] = (phase * std::f32::consts::TAU).sin();
+        self.add_phase(Oscillator::calculate_delta(self.frequency, params.sample_rate));
+        self.previous_output[0]
     }
     fn step_with_envelope(&mut self, params: &OscParams) -> f32 {
-        self.step(params) * self.envelope(params)
+        self.step(params) * self.envelope(params) * params.amp
     }
     fn release(&mut self, params: &OscParams) {
         self.release_level = self.envelope(params);
@@ -161,13 +188,16 @@ impl Oscillator {
     fn calculate_delta(frequency: f32, sample_rate: f32) -> f32 {
         frequency / sample_rate
     }
-    fn calculate_sine(&mut self, phase_delta: f32) -> f32 {
-        let sine = (self.phase * std::f32::consts::TAU).sin();
-
+    fn add_phase(&mut self, phase_delta: f32) {
         self.phase += phase_delta;
         if self.phase >= 1.0 {
             self.phase -= 1.0;
         }
+    }
+    fn calculate_sine(&mut self, phase_delta: f32) -> f32 {
+        let sine = (self.phase * std::f32::consts::TAU).sin();
+
+        self.add_phase(phase_delta);
 
         sine
     }

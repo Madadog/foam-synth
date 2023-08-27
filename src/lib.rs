@@ -1,6 +1,6 @@
 use nih_plug::prelude::*;
 use std::sync::Arc;
-use voice::{VoiceList, OscParams};
+use voice::{OscParams, VoiceList};
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -58,6 +58,8 @@ struct SynthPluginParams {
     pub osc1_sustain: FloatParam,
     #[id = "osc1_release"]
     pub osc1_release: FloatParam,
+    #[id = "osc1_feedback"]
+    pub osc1_feedback: FloatParam,
 
     #[id = "osc2_amp"]
     pub osc2_amp: FloatParam,
@@ -77,6 +79,8 @@ struct SynthPluginParams {
     pub osc2_sustain: FloatParam,
     #[id = "osc2_release"]
     pub osc2_release: FloatParam,
+    #[id = "osc2_feedback"]
+    pub osc2_feedback: FloatParam,
 }
 
 impl Default for SynthPlugin {
@@ -185,8 +189,9 @@ impl Default for SynthPluginParams {
                     min: 0.0,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
             osc1_decay: FloatParam::new(
                 "Osc1 Decay",
                 0.0,
@@ -194,25 +199,32 @@ impl Default for SynthPluginParams {
                     min: 0.0,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
             osc1_sustain: FloatParam::new(
                 "Osc1 Sustain",
                 1.0,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 1.0,
-                }
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc1_release: FloatParam::new(
                 "Osc1 Release",
-                0.0,
+                0.05,
                 FloatRange::Skewed {
-                    min: 0.0,
+                    min: 0.025,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
+            osc1_feedback: FloatParam::new(
+                "Osc1 Feedback",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
 
             osc2_amp: FloatParam::new(
                 "Osc2 Amp",
@@ -265,8 +277,9 @@ impl Default for SynthPluginParams {
                     min: 0.0,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
             osc2_decay: FloatParam::new(
                 "Osc2 Decay",
                 0.0,
@@ -274,25 +287,32 @@ impl Default for SynthPluginParams {
                     min: 0.0,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
             osc2_sustain: FloatParam::new(
                 "Osc2 Sustain",
                 1.0,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 1.0,
-                }
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc2_release: FloatParam::new(
                 "Osc2 Release",
-                0.0,
+                0.05,
                 FloatRange::Skewed {
-                    min: 0.0,
+                    min: 0.025,
                     max: 5.0,
                     factor: FloatRange::skew_factor(-2.0),
-                }
-            ).with_unit("s"),
+                },
+            )
+            .with_unit("s"),
+            osc2_feedback: FloatParam::new(
+                "Osc2 Feedback",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
         }
     }
 }
@@ -376,16 +396,34 @@ impl Plugin for SynthPlugin {
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         let mut next_event = context.next_event();
-        let params = OscParams {
-            sample_rate: self.sample_rate,
-            coarse: self.params.osc1_coarse.value(),
-            fine: self.params.osc1_fine.value(),
-            frequency_mult: self.params.osc1_freq_mult.value() / self.params.osc1_freq_div.value(),
-            attack: self.params.osc1_attack.value(),
-            decay: self.params.osc1_decay.value(),
-            sustain: self.params.osc1_sustain.value(),
-            release: self.params.osc1_release.value(),
-        };
+        let params = [
+            OscParams {
+                amp: self.params.osc1_amp.value() / 100.0,
+                sample_rate: self.sample_rate,
+                coarse: self.params.osc1_coarse.value(),
+                fine: self.params.osc1_fine.value(),
+                frequency_mult: self.params.osc1_freq_mult.value()
+                    / self.params.osc1_freq_div.value(),
+                attack: self.params.osc1_attack.value(),
+                decay: self.params.osc1_decay.value(),
+                sustain: self.params.osc1_sustain.value(),
+                release: self.params.osc1_release.value(),
+                feedback: self.params.osc1_feedback.value().signum() * self.params.osc1_feedback.value().powi(2),
+            },
+            OscParams {
+                amp: self.params.osc2_amp.value() / 100.0,
+                sample_rate: self.sample_rate,
+                coarse: self.params.osc2_coarse.value(),
+                fine: self.params.osc2_fine.value(),
+                frequency_mult: self.params.osc2_freq_mult.value()
+                    / self.params.osc2_freq_div.value(),
+                attack: self.params.osc2_attack.value(),
+                decay: self.params.osc2_decay.value(),
+                sustain: self.params.osc2_sustain.value(),
+                release: self.params.osc2_release.value(),
+                feedback: self.params.osc2_feedback.value().signum() * self.params.osc2_feedback.value().powi(2),
+            },
+        ];
         self.voices.update(&params);
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
@@ -423,7 +461,7 @@ impl Plugin for SynthPlugin {
             } else {
                 let frequency = self.params.frequency.smoothed.next();
                 self.calculate_sine(frequency)
-            } * self.params.osc1_amp.smoothed.next() / 100.0;
+            };
 
             for sample in channel_samples {
                 *sample = output * util::db_to_gain_fast(gain);
@@ -436,7 +474,7 @@ impl Plugin for SynthPlugin {
 
 impl ClapPlugin for SynthPlugin {
     const CLAP_ID: &'static str = "mada.dog.foam";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("8-voice FM synth");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("8-operator FM synth");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
 
