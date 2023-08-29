@@ -1,5 +1,7 @@
 use nih_plug::prelude::*;
 
+use crate::svf_simper::FilterType;
+
 #[derive(Params)]
 pub struct SynthPluginParams {
     #[id = "gain"]
@@ -134,6 +136,15 @@ pub struct SynthPluginParams {
     pub osc4_velocity_sensitivity: FloatParam,
     #[id = "osc4_keyscaling"]
     pub osc4_keyscaling: FloatParam,
+
+    #[id = "filter_enabled"]
+    pub filter_enabled: BoolParam,
+    #[id = "filter_type"]
+    pub filter_type: EnumParam<FilterType>,
+    #[id = "filter_cutoff"]
+    pub filter_cutoff: FloatParam,
+    #[id = "filter_resonance"]
+    pub filter_resonance: FloatParam,
 }
 
 impl Default for SynthPluginParams {
@@ -650,6 +661,30 @@ impl Default for SynthPluginParams {
                     max: 1.0,
                 },
             ),
+            filter_enabled: BoolParam::new(
+                "Filter Enabled",
+                false,
+            ),
+            filter_type: EnumParam::new(
+                "Filter Type",
+                FilterType::Lowpass,
+            ),
+            filter_cutoff: FloatParam::new(
+                "Filter Cutoff",
+                22000.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 22000.0,
+                }
+            ),
+            filter_resonance: FloatParam::new(
+                "Filter Resonance",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                }
+            )
         }
     }
 }

@@ -1,7 +1,7 @@
 use nih_plug::prelude::*;
 use parameters::SynthPluginParams;
 use std::sync::Arc;
-use voice::{OscParams, VoiceList};
+use voice::{OscParams, VoiceList, VoiceParams};
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -9,6 +9,7 @@ use voice::{OscParams, VoiceList};
 
 mod parameters;
 mod voice;
+mod svf_simper;
 
 struct SynthPlugin {
     params: Arc<SynthPluginParams>,
@@ -180,7 +181,14 @@ impl Plugin for SynthPlugin {
             ]
         ];
         pm_matrix.iter_mut().flatten().for_each(|x| *x *= 6.0);
-        self.voices.update(&params);
+        let voice_params = VoiceParams {
+            filter_enabled: self.params.filter_enabled.value(),
+            filter_type: self.params.filter_type.value(),
+            cutoff: self.params.filter_cutoff.value(),
+            resonance: self.params.filter_resonance.value(),
+            sample_rate: self.sample_rate,
+        };
+        self.voices.update(&params, voice_params);
         let block_size = buffer.samples();
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
@@ -194,7 +202,7 @@ impl Plugin for SynthPlugin {
 
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
-                        self.voices.add_voice(note, &params, velocity);
+                        self.voices.add_voice(note, &params, velocity, voice_params);
                     }
                     NoteEvent::NoteOff { note, .. } => {
                         // println!("Note off at {}/{sample_id}: {}", event.timing(), note);

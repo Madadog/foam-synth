@@ -1,3 +1,5 @@
+use crate::svf_simper::{SvfSimper, FilterType};
+
 pub struct VoiceList {
     voices: [Option<Voice>; 32],
 }
@@ -13,12 +15,12 @@ impl VoiceList {
             .map(|v| v.play(params, pm_matrix))
             .sum()
     }
-    pub fn add_voice(&mut self, note: u8, params: &[OscParams], velocity: f32) {
+    pub fn add_voice(&mut self, note: u8, osc_params: &[OscParams], velocity: f32, voice_params: VoiceParams) {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
-            *voice = Some(Voice::new(note, params, velocity));
+            *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
             *self.voices.get_mut(note as usize % 16).unwrap() =
-                Some(Voice::new(note, params, velocity));
+                Some(Voice::new(note, osc_params, velocity, voice_params));
         }
     }
     pub fn release_voice(&mut self, note: u8, params: &[OscParams]) {
@@ -39,10 +41,10 @@ impl VoiceList {
             }
         }
     }
-    pub fn update(&mut self, params: &[OscParams]) {
+    pub fn update(&mut self, osc_params: &[OscParams], voice_params: VoiceParams) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
-                voice.update(params);
+                voice.update(osc_params, voice_params);
             }
         }
     }
@@ -52,6 +54,7 @@ impl VoiceList {
 pub struct Voice {
     oscillators: [Oscillator; 4],
     midi_id: u8,
+    filter: Option<SvfSimper>,
 }
 impl Voice {
     pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
@@ -69,22 +72,32 @@ impl Voice {
                 + pm_matrix[3][1] * self.oscillators[1].previous()
                 + pm_matrix[3][2] * self.oscillators[2].previous(),
         ];
-        self.oscillators
+        let out = self.oscillators
             .iter_mut()
             .zip(params.iter())
             .zip(matrix)
             .map(|((v, params), pm)| v.step_with_envelope(params, pm))
-            .sum()
+            .sum();
+        if let Some(filter) = self.filter.as_mut() {
+            filter.process(out)
+        } else {
+            out
+        }
     }
-    pub fn new(midi_id: u8, params: &[OscParams], velocity: f32) -> Self {
+    pub fn new(midi_id: u8, osc_params: &[OscParams], velocity: f32, voice_params: VoiceParams) -> Self {
         Self {
             oscillators: [
-                Oscillator::new(midi_id, &params[0], velocity),
-                Oscillator::new(midi_id, &params[1], velocity),
-                Oscillator::new(midi_id, &params[2], velocity),
-                Oscillator::new(midi_id, &params[3], velocity),
+                Oscillator::new(midi_id, &osc_params[0], velocity),
+                Oscillator::new(midi_id, &osc_params[1], velocity),
+                Oscillator::new(midi_id, &osc_params[2], velocity),
+                Oscillator::new(midi_id, &osc_params[3], velocity),
             ],
             midi_id,
+            filter: if voice_params.filter_enabled {
+                Some(SvfSimper::new(voice_params.cutoff, voice_params.resonance, voice_params.sample_rate))
+            } else {
+                None
+            },
         }
     }
     pub fn release(&mut self, params: &[OscParams]) {
@@ -98,12 +111,25 @@ impl Voice {
             .zip(params.iter())
             .all(|(osc, params)| osc.is_done(params))
     }
-    pub fn update(&mut self, params: &[OscParams]) {
+    pub fn update(&mut self, osc_params: &[OscParams], voice_params: VoiceParams) {
         self.oscillators
             .iter_mut()
-            .zip(params.iter())
+            .zip(osc_params.iter())
             .for_each(|(osc, params)| osc.update_pitch(params));
+        if let Some(filter) = self.filter.as_mut() {
+            filter.set(voice_params.cutoff, voice_params.resonance, voice_params.sample_rate);
+            filter.set_filter_type(voice_params.filter_type);
+        }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct VoiceParams {
+    pub filter_enabled: bool,
+    pub filter_type: FilterType,
+    pub cutoff: f32,
+    pub resonance: f32,
+    pub sample_rate: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
