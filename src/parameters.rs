@@ -469,7 +469,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -478,7 +478,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -573,7 +573,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -582,7 +582,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -677,7 +677,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -686,7 +686,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -781,7 +781,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -790,7 +790,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -885,7 +885,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -894,7 +894,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -989,7 +989,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
@@ -998,7 +998,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 32.0,
+                    max: 64.0,
                 },
             )
             .with_step_size(1.0),
