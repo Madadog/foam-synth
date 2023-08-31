@@ -62,5 +62,6 @@ Thanks to [Codeium](https://codeium.com/) for filling out a lot of the boilerpla
 * Add global volume envelope
 * Make filter keytracking actually work
 * Allow use of the filter in FM modulation
+* Add noise source somewhere
 * Scala support?
 * Optimize
