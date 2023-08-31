@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Adam Godwin <evilspamalt@gmail.com>"]
 license = "GPLv3"
 homepage = "https://github.com/madadog/foam_synth"
-description = "8-voice FM synth"
+description = "6-voice FM synth"
 
 [workspace]
 members = ["xtask"]

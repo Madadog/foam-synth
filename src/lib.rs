@@ -153,27 +153,83 @@ impl Plugin for SynthPlugin {
                 keyscaling: self.params.osc4_keyscaling.value(),
                 octave_stretch: self.params.octave_stretch.value(),
             },
+            OscParams {
+                output_gain: self.params.osc5_amp.value() / 100.0,
+                sample_rate: self.sample_rate,
+                coarse: self.params.osc5_coarse.value(),
+                fine: self.params.osc5_fine.value(),
+                frequency_mult: self.params.osc5_freq_mult.value()
+                    / self.params.osc5_freq_div.value(),
+                attack: self.params.osc5_attack.value(),
+                decay: self.params.osc5_decay.value(),
+                sustain: self.params.osc5_sustain.value(),
+                release: self.params.osc5_release.value(),
+                feedback: self.params.osc5_feedback.value().signum()
+                    * self.params.osc5_feedback.value().powi(2),
+                velocity_sensitivity: self.params.osc5_velocity_sensitivity.value(),
+                keyscaling: self.params.osc5_keyscaling.value(),
+                octave_stretch: self.params.octave_stretch.value(),
+            },
+            OscParams {
+                output_gain: self.params.osc6_amp.value() / 100.0,
+                sample_rate: self.sample_rate,
+                coarse: self.params.osc6_coarse.value(),
+                fine: self.params.osc6_fine.value(),
+                frequency_mult: self.params.osc6_freq_mult.value()
+                    / self.params.osc6_freq_div.value(),
+                attack: self.params.osc6_attack.value(),
+                decay: self.params.osc6_decay.value(),
+                sustain: self.params.osc6_sustain.value(),
+                release: self.params.osc6_release.value(),
+                feedback: self.params.osc6_feedback.value().signum()
+                    * self.params.osc6_feedback.value().powi(2),
+                velocity_sensitivity: self.params.osc6_velocity_sensitivity.value(),
+                keyscaling: self.params.osc6_keyscaling.value(),
+                octave_stretch: self.params.octave_stretch.value(),
+            },
         ];
         let mut pm_matrix = [
             [
                 self.params.mod_osc1_by_osc2.value(),
                 self.params.mod_osc1_by_osc3.value(),
                 self.params.mod_osc1_by_osc4.value(),
+                self.params.mod_osc1_by_osc5.value(),
+                self.params.mod_osc1_by_osc6.value(),
             ],
             [
                 self.params.mod_osc2_by_osc1.value(),
                 self.params.mod_osc2_by_osc3.value(),
                 self.params.mod_osc2_by_osc4.value(),
+                self.params.mod_osc2_by_osc5.value(),
+                self.params.mod_osc2_by_osc6.value(),
             ],
             [
                 self.params.mod_osc3_by_osc1.value(),
                 self.params.mod_osc3_by_osc2.value(),
                 self.params.mod_osc3_by_osc4.value(),
+                self.params.mod_osc3_by_osc5.value(),
+                self.params.mod_osc3_by_osc6.value(),
             ],
             [
                 self.params.mod_osc4_by_osc1.value(),
                 self.params.mod_osc4_by_osc2.value(),
                 self.params.mod_osc4_by_osc3.value(),
+                self.params.mod_osc4_by_osc5.value(),
+                self.params.mod_osc4_by_osc6.value(),
+            ],
+            [
+                self.params.mod_osc5_by_osc1.value(),
+                self.params.mod_osc5_by_osc2.value(),
+                self.params.mod_osc5_by_osc3.value(),
+                self.params.mod_osc5_by_osc4.value(),
+                self.params.mod_osc5_by_osc6.value(),
+            ],
+            [
+                self.params.mod_osc6_by_osc1.value(),
+                self.params.mod_osc6_by_osc2.value(),
+                self.params.mod_osc6_by_osc3.value(),
+                self.params.mod_osc6_by_osc4.value(),
+                self.params.mod_osc6_by_osc5.value(),
             ]
         ];
         pm_matrix.iter_mut().flatten().for_each(|x| *x *= 6.0);
@@ -228,7 +284,7 @@ impl Plugin for SynthPlugin {
 
 impl ClapPlugin for SynthPlugin {
     const CLAP_ID: &'static str = "mada.dog.foam";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("4-operator FM synth");
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("6-operator FM synth");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
 

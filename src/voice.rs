@@ -8,7 +8,7 @@ impl VoiceList {
     pub fn new() -> Self {
         Self { voices: [None; 32] }
     }
-    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
+    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 5]; 6]) -> f32 {
         self.voices
             .iter_mut()
             .filter_map(|voice| voice.as_mut())
@@ -58,7 +58,7 @@ impl VoiceList {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Voice {
-    oscillators: [Oscillator; 4],
+    oscillators: [Oscillator; 6],
     midi_id: u8,
     filter: Option<SvfSimper>,
     time: u32,
@@ -66,21 +66,39 @@ pub struct Voice {
     release_level: f32,
 }
 impl Voice {
-    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
+    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 5]; 6]) -> f32 {
         self.time += 1;
         let matrix = [
             pm_matrix[0][0] * self.oscillators[1].previous()
                 + pm_matrix[0][1] * self.oscillators[2].previous()
-                + pm_matrix[0][2] * self.oscillators[3].previous(),
+                + pm_matrix[0][2] * self.oscillators[3].previous()
+                + pm_matrix[0][3] * self.oscillators[4].previous()
+                + pm_matrix[0][4] * self.oscillators[5].previous(),
             pm_matrix[1][0] * self.oscillators[0].previous()
                 + pm_matrix[1][1] * self.oscillators[2].previous()
-                + pm_matrix[1][2] * self.oscillators[3].previous(),
+                + pm_matrix[1][2] * self.oscillators[3].previous()
+                + pm_matrix[1][3] * self.oscillators[4].previous()
+                + pm_matrix[1][4] * self.oscillators[5].previous(),
             pm_matrix[2][0] * self.oscillators[0].previous()
                 + pm_matrix[2][1] * self.oscillators[1].previous()
-                + pm_matrix[2][2] * self.oscillators[3].previous(),
+                + pm_matrix[2][2] * self.oscillators[3].previous()
+                + pm_matrix[2][3] * self.oscillators[4].previous()
+                + pm_matrix[2][4] * self.oscillators[5].previous(),
             pm_matrix[3][0] * self.oscillators[0].previous()
                 + pm_matrix[3][1] * self.oscillators[1].previous()
-                + pm_matrix[3][2] * self.oscillators[2].previous(),
+                + pm_matrix[3][2] * self.oscillators[2].previous()
+                + pm_matrix[3][3] * self.oscillators[4].previous()
+                + pm_matrix[3][4] * self.oscillators[5].previous(),
+            pm_matrix[4][0] * self.oscillators[0].previous()
+                + pm_matrix[4][1] * self.oscillators[1].previous()
+                + pm_matrix[4][2] * self.oscillators[2].previous()
+                + pm_matrix[4][3] * self.oscillators[3].previous()
+                + pm_matrix[4][4] * self.oscillators[5].previous(),
+            pm_matrix[5][0] * self.oscillators[0].previous()
+                + pm_matrix[5][1] * self.oscillators[1].previous()
+                + pm_matrix[5][2] * self.oscillators[2].previous()
+                + pm_matrix[5][3] * self.oscillators[3].previous()
+                + pm_matrix[5][4] * self.oscillators[4].previous(),
         ];
         let out = self
             .oscillators
@@ -107,6 +125,8 @@ impl Voice {
                 Oscillator::new(midi_id, &osc_params[1], velocity),
                 Oscillator::new(midi_id, &osc_params[2], velocity),
                 Oscillator::new(midi_id, &osc_params[3], velocity),
+                Oscillator::new(midi_id, &osc_params[4], velocity),
+                Oscillator::new(midi_id, &osc_params[5], velocity),
             ],
             midi_id,
             filter: if voice_params.filter_enabled {

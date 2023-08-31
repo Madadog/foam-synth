@@ -15,6 +15,10 @@ pub struct SynthPluginParams {
     pub mod_osc1_by_osc3: FloatParam,
     #[id = "mod_osc1_by_osc4"]
     pub mod_osc1_by_osc4: FloatParam,
+    #[id = "mod_osc1_by_osc5"]
+    pub mod_osc1_by_osc5: FloatParam,
+    #[id = "mod_osc1_by_osc6"]
+    pub mod_osc1_by_osc6: FloatParam,
 
     #[id = "mod_osc2_by_osc1"]
     pub mod_osc2_by_osc1: FloatParam,
@@ -22,6 +26,10 @@ pub struct SynthPluginParams {
     pub mod_osc2_by_osc3: FloatParam,
     #[id = "mod_osc2_by_osc4"]
     pub mod_osc2_by_osc4: FloatParam,
+    #[id = "mod_osc2_by_osc5"]
+    pub mod_osc2_by_osc5: FloatParam,
+    #[id = "mod_osc2_by_osc6"]
+    pub mod_osc2_by_osc6: FloatParam,
 
     #[id = "mod_osc3_by_osc1"]
     pub mod_osc3_by_osc1: FloatParam,
@@ -29,6 +37,10 @@ pub struct SynthPluginParams {
     pub mod_osc3_by_osc2: FloatParam,
     #[id = "mod_osc3_by_osc4"]
     pub mod_osc3_by_osc4: FloatParam,
+    #[id = "mod_osc3_by_osc5"]
+    pub mod_osc3_by_osc5: FloatParam,
+    #[id = "mod_osc3_by_osc6"]
+    pub mod_osc3_by_osc6: FloatParam,
 
     #[id = "mod_osc4_by_osc1"]
     pub mod_osc4_by_osc1: FloatParam,
@@ -36,6 +48,32 @@ pub struct SynthPluginParams {
     pub mod_osc4_by_osc2: FloatParam,
     #[id = "mod_osc4_by_osc3"]
     pub mod_osc4_by_osc3: FloatParam,
+    #[id = "mod_osc4_by_osc5"]
+    pub mod_osc4_by_osc5: FloatParam,
+    #[id = "mod_osc4_by_osc6"]
+    pub mod_osc4_by_osc6: FloatParam,
+
+    #[id = "mod_osc5_by_osc1"]
+    pub mod_osc5_by_osc1: FloatParam,
+    #[id = "mod_osc5_by_osc2"]
+    pub mod_osc5_by_osc2: FloatParam,
+    #[id = "mod_osc5_by_osc3"]
+    pub mod_osc5_by_osc3: FloatParam,
+    #[id = "mod_osc5_by_osc4"]
+    pub mod_osc5_by_osc4: FloatParam,
+    #[id = "mod_osc5_by_osc6"]
+    pub mod_osc5_by_osc6: FloatParam,
+
+    #[id = "mod_osc6_by_osc1"]
+    pub mod_osc6_by_osc1: FloatParam,
+    #[id = "mod_osc6_by_osc2"]
+    pub mod_osc6_by_osc2: FloatParam,
+    #[id = "mod_osc6_by_osc3"]
+    pub mod_osc6_by_osc3: FloatParam,
+    #[id = "mod_osc6_by_osc4"]
+    pub mod_osc6_by_osc4: FloatParam,
+    #[id = "mod_osc6_by_osc5"]
+    pub mod_osc6_by_osc5: FloatParam,
 
     #[id = "osc1_amp"]
     pub osc1_amp: FloatParam,
@@ -137,6 +175,56 @@ pub struct SynthPluginParams {
     #[id = "osc4_keyscaling"]
     pub osc4_keyscaling: FloatParam,
 
+    #[id = "osc5_amp"]
+    pub osc5_amp: FloatParam,
+    #[id = "osc5_coarse"]
+    pub osc5_coarse: FloatParam,
+    #[id = "osc5_fine"]
+    pub osc5_fine: FloatParam,
+    #[id = "osc5_freq_mult"]
+    pub osc5_freq_mult: FloatParam,
+    #[id = "osc5_freq_div"]
+    pub osc5_freq_div: FloatParam,
+    #[id = "osc5_attack"]
+    pub osc5_attack: FloatParam,
+    #[id = "osc5_decay"]
+    pub osc5_decay: FloatParam,
+    #[id = "osc5_sustain"]
+    pub osc5_sustain: FloatParam,
+    #[id = "osc5_release"]
+    pub osc5_release: FloatParam,
+    #[id = "osc5_feedback"]
+    pub osc5_feedback: FloatParam,
+    #[id = "osc5_velocity_sensitivity"]
+    pub osc5_velocity_sensitivity: FloatParam,
+    #[id = "osc5_keyscaling"]
+    pub osc5_keyscaling: FloatParam,
+
+    #[id = "osc6_amp"]
+    pub osc6_amp: FloatParam,
+    #[id = "osc6_coarse"]
+    pub osc6_coarse: FloatParam,
+    #[id = "osc6_fine"]
+    pub osc6_fine: FloatParam,
+    #[id = "osc6_freq_mult"]
+    pub osc6_freq_mult: FloatParam,
+    #[id = "osc6_freq_div"]
+    pub osc6_freq_div: FloatParam,
+    #[id = "osc6_attack"]
+    pub osc6_attack: FloatParam,
+    #[id = "osc6_decay"]
+    pub osc6_decay: FloatParam,
+    #[id = "osc6_sustain"]
+    pub osc6_sustain: FloatParam,
+    #[id = "osc6_release"]
+    pub osc6_release: FloatParam,
+    #[id = "osc6_feedback"]
+    pub osc6_feedback: FloatParam,
+    #[id = "osc6_velocity_sensitivity"]
+    pub osc6_velocity_sensitivity: FloatParam,
+    #[id = "osc6_keyscaling"]
+    pub osc6_keyscaling: FloatParam,
+
     #[id = "filter_enabled"]
     pub filter_enabled: BoolParam,
     #[id = "filter_type"]
@@ -209,6 +297,16 @@ impl Default for SynthPluginParams {
                 0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
+            mod_osc1_by_osc5: FloatParam::new(
+                "Mod Osc1 by Osc5",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc1_by_osc6: FloatParam::new(
+                "Mod Osc1 by Osc6",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
 
             mod_osc2_by_osc1: FloatParam::new(
                 "Mod Osc2 by Osc1",
@@ -222,6 +320,16 @@ impl Default for SynthPluginParams {
             ),
             mod_osc2_by_osc4: FloatParam::new(
                 "Mod Osc2 by Osc4",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc2_by_osc5: FloatParam::new(
+                "Mod Osc2 by Osc5",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc2_by_osc6: FloatParam::new(
+                "Mod Osc2 by Osc6",
                 0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
@@ -241,6 +349,16 @@ impl Default for SynthPluginParams {
                 0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
+            mod_osc3_by_osc5: FloatParam::new(
+                "Mod Osc3 by Osc5",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc3_by_osc6: FloatParam::new(
+                "Mod Osc3 by Osc6",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
 
             mod_osc4_by_osc1: FloatParam::new(
                 "Mod Osc4 by Osc1",
@@ -254,6 +372,68 @@ impl Default for SynthPluginParams {
             ),
             mod_osc4_by_osc3: FloatParam::new(
                 "Mod Osc4 by Osc3",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc4_by_osc5: FloatParam::new(
+                "Mod Osc4 by Osc5",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc4_by_osc6: FloatParam::new(
+                "Mod Osc4 by Osc6",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+
+            mod_osc5_by_osc1: FloatParam::new(
+                "Mod Osc5 by Osc1",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc5_by_osc2: FloatParam::new(
+                "Mod Osc5 by Osc2",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc5_by_osc3: FloatParam::new(
+                "Mod Osc5 by Osc3",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc5_by_osc4: FloatParam::new(
+                "Mod Osc5 by Osc4",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc5_by_osc6: FloatParam::new(
+                "Mod Osc5 by Osc6",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+
+            mod_osc6_by_osc1: FloatParam::new(
+                "Mod Osc6 by Osc1",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc6_by_osc2: FloatParam::new(
+                "Mod Osc6 by Osc2",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc6_by_osc3: FloatParam::new(
+                "Mod Osc6 by Osc3",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc6_by_osc4: FloatParam::new(
+                "Mod Osc6 by Osc4",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            mod_osc6_by_osc5: FloatParam::new(
+                "Mod Osc6 by Osc5",
                 0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
@@ -314,7 +494,7 @@ impl Default for SynthPluginParams {
             .with_unit("s"),
             osc1_decay: FloatParam::new(
                 "Osc1 Decay",
-                0.0,
+                0.5,
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 5.0,
@@ -418,7 +598,7 @@ impl Default for SynthPluginParams {
             .with_unit("s"),
             osc2_decay: FloatParam::new(
                 "Osc2 Decay",
-                0.0,
+                0.5,
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 5.0,
@@ -522,7 +702,7 @@ impl Default for SynthPluginParams {
             .with_unit("s"),
             osc3_decay: FloatParam::new(
                 "Osc3 Decay",
-                0.0,
+                0.5,
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 5.0,
@@ -626,7 +806,7 @@ impl Default for SynthPluginParams {
             .with_unit("s"),
             osc4_decay: FloatParam::new(
                 "Osc4 Decay",
-                0.0,
+                0.5,
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 5.0,
@@ -673,9 +853,218 @@ impl Default for SynthPluginParams {
                     max: 1.0,
                 },
             ),
+
+            osc5_amp: FloatParam::new(
+                "Osc5 Amp",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            osc5_coarse: FloatParam::new(
+                "Osc5 Coarse",
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc5_fine: FloatParam::new(
+                "Osc5 Fine",
+                0.0,
+                FloatRange::Linear {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            osc5_freq_mult: FloatParam::new(
+                "Osc5 Freq Mult",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc5_freq_div: FloatParam::new(
+                "Osc5 Freq Div",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc5_attack: FloatParam::new(
+                "Osc5 Attack",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc5_decay: FloatParam::new(
+                "Osc5 Decay",
+                0.5,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc5_sustain: FloatParam::new(
+                "Osc5 Sustain",
+                1.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            osc5_release: FloatParam::new(
+                "Osc5 Release",
+                0.05,
+                FloatRange::Skewed {
+                    min: 0.025,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc5_feedback: FloatParam::new(
+                "Osc5 Feedback",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc5_velocity_sensitivity: FloatParam::new(
+                "Osc5 Velocity Sens.",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc5_keyscaling: FloatParam::new(
+                "Osc5 Keyscaling",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+
+            osc6_amp: FloatParam::new(
+                "Osc6 Amp",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            osc6_coarse: FloatParam::new(
+                "Osc6 Coarse",
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc6_fine: FloatParam::new(
+                "Osc6 Fine",
+                0.0,
+                FloatRange::Linear {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            osc6_freq_mult: FloatParam::new(
+                "Osc6 Freq Mult",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc6_freq_div: FloatParam::new(
+                "Osc6 Freq Div",
+                1.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 32.0,
+                },
+            )
+            .with_step_size(1.0),
+            osc6_attack: FloatParam::new(
+                "Osc6 Attack",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc6_decay: FloatParam::new(
+                "Osc6 Decay",
+                0.5,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc6_sustain: FloatParam::new(
+                "Osc6 Sustain",
+                1.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            osc6_release: FloatParam::new(
+                "Osc6 Release",
+                0.05,
+                FloatRange::Skewed {
+                    min: 0.025,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit("s"),
+            osc6_feedback: FloatParam::new(
+                "Osc6 Feedback",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc6_velocity_sensitivity: FloatParam::new(
+                "Osc6 Velocity Sens.",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            osc6_keyscaling: FloatParam::new(
+                "Osc6 Keyscaling",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            
             filter_enabled: BoolParam::new(
                 "Filter Enabled",
-                false,
+                true,
             ),
             filter_type: EnumParam::new(
                 "Filter Type",
@@ -724,7 +1113,7 @@ impl Default for SynthPluginParams {
             ),
             filter_envelope_decay: FloatParam::new(
                 "Filter Env. Decay",
-                0.0,
+                0.5,
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 5.0,
