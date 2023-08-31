@@ -145,6 +145,18 @@ pub struct SynthPluginParams {
     pub filter_cutoff: FloatParam,
     #[id = "filter_resonance"]
     pub filter_resonance: FloatParam,
+    #[id = "filter_keytrack"]
+    pub filter_keytrack: FloatParam,
+    #[id = "filter_envelope_enabled"]
+    pub filter_envelope_amount: FloatParam,
+    #[id = "filter_envelope_attack"]
+    pub filter_envelope_attack: FloatParam,
+    #[id = "filter_envelope_decay"]
+    pub filter_envelope_decay: FloatParam,
+    #[id = "filter_envelope_sustain"]
+    pub filter_envelope_sustain: FloatParam,
+    #[id = "filter_envelope_release"]
+    pub filter_envelope_release: FloatParam,
 }
 
 impl Default for SynthPluginParams {
@@ -589,7 +601,7 @@ impl Default for SynthPluginParams {
                 1.0,
                 FloatRange::Linear {
                     min: 1.0,
-                    max: 34.0,
+                    max: 32.0,
                 },
             )
             .with_step_size(1.0),
@@ -673,7 +685,7 @@ impl Default for SynthPluginParams {
                 "Filter Cutoff",
                 22000.0,
                 FloatRange::Linear {
-                    min: 0.0,
+                    min: 20.0,
                     max: 22000.0,
                 }
             ),
@@ -683,6 +695,57 @@ impl Default for SynthPluginParams {
                 FloatRange::Linear {
                     min: 0.0,
                     max: 1.0,
+                }
+            ),
+            filter_keytrack: FloatParam::new(
+                "Filter Keytrack",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                }
+            ),
+            filter_envelope_amount: FloatParam::new(
+                "Filter Env. Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                }
+            ),
+            filter_envelope_attack: FloatParam::new(
+                "Filter Env. Attack",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ),
+            filter_envelope_decay: FloatParam::new(
+                "Filter Env. Decay",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                }
+            ),
+            filter_envelope_sustain: FloatParam::new(
+                "Filter Env. Sustain",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                }
+            ),
+            filter_envelope_release: FloatParam::new(
+                "Filter Env. Release",
+                0.05,
+                FloatRange::Skewed {
+                    min: 0.025,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
                 }
             )
         }

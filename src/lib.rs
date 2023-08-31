@@ -3,10 +3,6 @@ use parameters::SynthPluginParams;
 use std::sync::Arc;
 use voice::{OscParams, VoiceList, VoiceParams};
 
-// This is a shortened version of the gain example with most comments removed, check out
-// https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
-// started
-
 mod parameters;
 mod voice;
 mod svf_simper;
@@ -182,11 +178,16 @@ impl Plugin for SynthPlugin {
         ];
         pm_matrix.iter_mut().flatten().for_each(|x| *x *= 6.0);
         let voice_params = VoiceParams {
+            sample_rate: self.sample_rate,
             filter_enabled: self.params.filter_enabled.value(),
             filter_type: self.params.filter_type.value(),
-            cutoff: self.params.filter_cutoff.value(),
-            resonance: self.params.filter_resonance.value(),
-            sample_rate: self.sample_rate,
+            filter_cutoff: self.params.filter_cutoff.value(),
+            filter_resonance: self.params.filter_resonance.value(),
+            filter_envelope_amount: self.params.filter_envelope_amount.value(),
+            filter_attack: self.params.filter_envelope_attack.value(),
+            filter_decay: self.params.filter_envelope_decay.value(),
+            filter_sustain: self.params.filter_envelope_sustain.value(),
+            filter_release: self.params.filter_envelope_release.value(),
         };
         self.voices.update(&params, voice_params);
         let block_size = buffer.samples();

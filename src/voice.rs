@@ -1,4 +1,4 @@
-use crate::svf_simper::{SvfSimper, FilterType};
+use crate::svf_simper::{FilterType, SvfSimper};
 
 pub struct VoiceList {
     voices: [Option<Voice>; 32],
@@ -15,7 +15,13 @@ impl VoiceList {
             .map(|v| v.play(params, pm_matrix))
             .sum()
     }
-    pub fn add_voice(&mut self, note: u8, osc_params: &[OscParams], velocity: f32, voice_params: VoiceParams) {
+    pub fn add_voice(
+        &mut self,
+        note: u8,
+        osc_params: &[OscParams],
+        velocity: f32,
+        voice_params: VoiceParams,
+    ) {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
             *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
@@ -55,9 +61,13 @@ pub struct Voice {
     oscillators: [Oscillator; 4],
     midi_id: u8,
     filter: Option<SvfSimper>,
+    time: u32,
+    released_time: Option<u32>,
+    release_level: f32,
 }
 impl Voice {
     pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 3]; 4]) -> f32 {
+        self.time += 1;
         let matrix = [
             pm_matrix[0][0] * self.oscillators[1].previous()
                 + pm_matrix[0][1] * self.oscillators[2].previous()
@@ -72,7 +82,8 @@ impl Voice {
                 + pm_matrix[3][1] * self.oscillators[1].previous()
                 + pm_matrix[3][2] * self.oscillators[2].previous(),
         ];
-        let out = self.oscillators
+        let out = self
+            .oscillators
             .iter_mut()
             .zip(params.iter())
             .zip(matrix)
@@ -84,7 +95,12 @@ impl Voice {
             out
         }
     }
-    pub fn new(midi_id: u8, osc_params: &[OscParams], velocity: f32, voice_params: VoiceParams) -> Self {
+    pub fn new(
+        midi_id: u8,
+        osc_params: &[OscParams],
+        velocity: f32,
+        voice_params: VoiceParams,
+    ) -> Self {
         Self {
             oscillators: [
                 Oscillator::new(midi_id, &osc_params[0], velocity),
@@ -94,10 +110,28 @@ impl Voice {
             ],
             midi_id,
             filter: if voice_params.filter_enabled {
-                Some(SvfSimper::new(voice_params.cutoff, voice_params.resonance, voice_params.sample_rate))
+                let mut filter = SvfSimper::new(
+                    Voice::calc_filter_cutoff(
+                        &voice_params,
+                        envelope(
+                            voice_params.sample_rate,
+                            0,
+                            voice_params.filter_attack,
+                            voice_params.filter_decay,
+                            voice_params.filter_sustain,
+                        ),
+                    ),
+                    voice_params.filter_resonance,
+                    voice_params.sample_rate,
+                );
+                filter.filter_type = voice_params.filter_type;
+                Some(filter)
             } else {
                 None
             },
+            time: 0,
+            released_time: None,
+            release_level: 0.0,
         }
     }
     pub fn release(&mut self, params: &[OscParams]) {
@@ -116,20 +150,61 @@ impl Voice {
             .iter_mut()
             .zip(osc_params.iter())
             .for_each(|(osc, params)| osc.update_pitch(params));
-        if let Some(filter) = self.filter.as_mut() {
-            filter.set(voice_params.cutoff, voice_params.resonance, voice_params.sample_rate);
+        if !voice_params.filter_enabled {
+            self.filter = None
+        } else {
+            let cutoff =
+                Voice::calc_filter_cutoff(&voice_params, self.calc_filter_envelope(&voice_params));
+            let filter = self.filter.get_or_insert(SvfSimper::new(
+                cutoff,
+                voice_params.filter_resonance,
+                voice_params.sample_rate,
+            ));
+            filter.set(
+                cutoff,
+                voice_params.filter_resonance,
+                voice_params.sample_rate,
+            );
             filter.set_filter_type(voice_params.filter_type);
         }
+    }
+    fn calc_filter_envelope(&self, voice_params: &VoiceParams) -> f32 {
+        if let Some(released_time) = self.released_time {
+            release_envelope(
+                voice_params.sample_rate,
+                self.time - released_time,
+                voice_params.filter_release,
+                self.release_level,
+            )
+        } else {
+            envelope(
+                voice_params.sample_rate,
+                self.time,
+                voice_params.filter_attack,
+                voice_params.filter_decay,
+                voice_params.filter_sustain,
+            )
+        }
+    }
+    fn calc_filter_cutoff(voice_params: &VoiceParams, envelope: f32) -> f32 {
+        (voice_params.filter_cutoff
+            + voice_params.filter_envelope_amount * 22000.0 * envelope.powi(2))
+        .clamp(20.0, 22000.0)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct VoiceParams {
+    pub sample_rate: f32,
     pub filter_enabled: bool,
     pub filter_type: FilterType,
-    pub cutoff: f32,
-    pub resonance: f32,
-    pub sample_rate: f32,
+    pub filter_cutoff: f32,
+    pub filter_resonance: f32,
+    pub filter_envelope_amount: f32,
+    pub filter_attack: f32,
+    pub filter_decay: f32,
+    pub filter_sustain: f32,
+    pub filter_release: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -147,6 +222,23 @@ pub struct OscParams {
     pub velocity_sensitivity: f32,
     pub keyscaling: f32,
     pub octave_stretch: f32,
+}
+
+pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f32) -> f32 {
+    let time = time as f32 / sample_rate;
+    if time < attack {
+        time / attack
+    } else if time < attack + decay {
+        (1.0 - ((time - attack) / decay)).powi(2) * (1.0 - sustain) + sustain
+    } else {
+        sustain
+    }
+    .max(0.0)
+}
+
+pub fn release_envelope(sample_rate: f32, time: u32, release: f32, release_level: f32) -> f32 {
+    let delta = time as f32 / sample_rate;
+    release_level * (1.0 - (delta as f32 / release)).max(0.0).powi(2)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -181,19 +273,22 @@ impl Oscillator {
         }
     }
     fn envelope(&self, params: &OscParams) -> f32 {
-        let time = self.time as f32 / params.sample_rate;
         if let Some(released_time) = self.released_time() {
-            let delta = released_time as f32 / params.sample_rate;
-            self.release_level * (1.0 - (delta as f32 / params.release)).max(0.0).powi(2)
-        } else if time < params.attack {
-            time / params.attack
-        } else if time < params.attack + params.decay {
-            (1.0 - ((time - params.attack) / params.decay)).powi(2) * (1.0 - params.sustain)
-                + params.sustain
+            release_envelope(
+                params.sample_rate,
+                released_time,
+                params.release,
+                self.release_level,
+            )
         } else {
-            params.sustain
+            envelope(
+                params.sample_rate,
+                self.time,
+                params.attack,
+                params.decay,
+                params.sustain,
+            )
         }
-        .max(0.0)
     }
     fn get_pitch(midi_id: u8, params: &OscParams) -> f32 {
         2.0f32.powf(
