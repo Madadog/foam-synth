@@ -258,10 +258,10 @@ impl Default for SynthPluginParams {
                 util::db_to_gain(-12.0),
                 FloatRange::Skewed {
                     min: util::db_to_gain(-70.0),
-                    max: util::db_to_gain(24.0),
+                    max: util::db_to_gain(0.0),
                     // This makes the range appear as if it was linear when displaying the values as
                     // decibels
-                    factor: FloatRange::gain_skew_factor(-70.0, 24.0),
+                    factor: 1.0,
                 },
             )
             // Because the gain parameter is stored as linear gain instead of storing the value as
@@ -485,20 +485,18 @@ impl Default for SynthPluginParams {
             osc1_attack: FloatParam::new(
                 "Osc1 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc1_decay: FloatParam::new(
                 "Osc1 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -510,10 +508,9 @@ impl Default for SynthPluginParams {
             osc1_release: FloatParam::new(
                 "Osc1 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -589,20 +586,18 @@ impl Default for SynthPluginParams {
             osc2_attack: FloatParam::new(
                 "Osc2 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc2_decay: FloatParam::new(
                 "Osc2 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -614,10 +609,9 @@ impl Default for SynthPluginParams {
             osc2_release: FloatParam::new(
                 "Osc2 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -693,20 +687,18 @@ impl Default for SynthPluginParams {
             osc3_attack: FloatParam::new(
                 "Osc3 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc3_decay: FloatParam::new(
                 "Osc3 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -718,10 +710,9 @@ impl Default for SynthPluginParams {
             osc3_release: FloatParam::new(
                 "Osc3 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -797,20 +788,18 @@ impl Default for SynthPluginParams {
             osc4_attack: FloatParam::new(
                 "Osc4 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc4_decay: FloatParam::new(
                 "Osc4 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -822,10 +811,9 @@ impl Default for SynthPluginParams {
             osc4_release: FloatParam::new(
                 "Osc4 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -901,20 +889,18 @@ impl Default for SynthPluginParams {
             osc5_attack: FloatParam::new(
                 "Osc5 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc5_decay: FloatParam::new(
                 "Osc5 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -926,10 +912,9 @@ impl Default for SynthPluginParams {
             osc5_release: FloatParam::new(
                 "Osc5 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -1005,20 +990,18 @@ impl Default for SynthPluginParams {
             osc6_attack: FloatParam::new(
                 "Osc6 Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
             osc6_decay: FloatParam::new(
                 "Osc6 Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -1030,10 +1013,9 @@ impl Default for SynthPluginParams {
             osc6_release: FloatParam::new(
                 "Osc6 Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 },
             )
             .with_unit("s"),
@@ -1105,19 +1087,17 @@ impl Default for SynthPluginParams {
             filter_envelope_attack: FloatParam::new(
                 "Filter Env. Attack",
                 0.0,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 }
             ),
             filter_envelope_decay: FloatParam::new(
                 "Filter Env. Decay",
                 0.5,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.0,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 }
             ),
             filter_envelope_sustain: FloatParam::new(
@@ -1131,10 +1111,9 @@ impl Default for SynthPluginParams {
             filter_envelope_release: FloatParam::new(
                 "Filter Env. Release",
                 0.05,
-                FloatRange::Skewed {
+                FloatRange::Linear {
                     min: 0.025,
                     max: 5.0,
-                    factor: FloatRange::skew_factor(-2.0),
                 }
             )
         }

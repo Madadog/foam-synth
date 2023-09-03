@@ -274,7 +274,7 @@ impl Plugin for SynthPlugin {
             let output = self.voices.play(&params, pm_matrix);
 
             for sample in channel_samples {
-                *sample = output * util::db_to_gain_fast(gain);
+                *sample = output * gain;
             }
         }
         self.voices.remove_voices(&params);

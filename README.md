@@ -5,7 +5,9 @@
 
 Open source under GPLv3.
 
-Currently has no GUI, relies on the host's default controls for VST/CLAP plugins. In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update.
+Currently has no GUI, relies on the host's default controls for VST/CLAP plugins. In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update. Also, the CLAP version has not been tested yet (though it probably still works).
+
+Downloads [available at the releases page](https://github.com/Madadog/foam-synth/releases).
 
 ## What
 
@@ -32,6 +34,13 @@ The oscillators modulate each other via a 6x5 matrix, where every oscillator is 
 There is also a multimode filter (Simper SVF) on each voice, which can be controlled via an ADSR envelope.
 
 Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a true FM synth, try setting it up in [Cardinal](https://github.com/DISTRHO/Cardinal).
+
+## Why
+
+Made just for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed) clone, except:
+
+* Build-your-own algorithm with the FM matrix
+* Feedback on every oscillator
 
 ## Building
 
@@ -62,6 +71,10 @@ Thanks to [Codeium](https://codeium.com/) for filling out a lot of the boilerpla
 * Add global volume envelope
 * Make filter keytracking actually work
 * Allow use of the filter in FM modulation
+* RM modulation
+* Oscillator sync
+* Legato, portamento
 * Add noise source somewhere
+* Rescale keyscaling, allow picking root key
 * Scala support?
 * Optimize
