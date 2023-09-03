@@ -6,6 +6,7 @@ use voice::{OscParams, VoiceList, VoiceParams};
 mod parameters;
 mod voice;
 mod svf_simper;
+mod editor;
 
 struct SynthPlugin {
     params: Arc<SynthPluginParams>,
@@ -60,6 +61,13 @@ impl Plugin for SynthPlugin {
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
+    }
+
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+        editor::create(
+            self.params.clone(),
+            self.params.editor_state.clone(),
+        )
     }
 
     fn initialize(

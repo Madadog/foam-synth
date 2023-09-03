@@ -1,9 +1,15 @@
 use nih_plug::prelude::*;
+use std::sync::Arc;
+use nih_plug_iced::IcedState;
 
 use crate::svf_simper::FilterType;
+use crate::editor;
 
 #[derive(Params)]
 pub struct SynthPluginParams {
+    #[persist = "editor-state"]
+    pub(crate) editor_state: Arc<IcedState>,
+
     #[id = "gain"]
     pub gain: FloatParam,
     #[id = "octave_multiplier"]
@@ -250,6 +256,7 @@ pub struct SynthPluginParams {
 impl Default for SynthPluginParams {
     fn default() -> Self {
         Self {
+            editor_state: editor::default_state(),
             // This gain is stored as linear gain. NIH-plug comes with useful conversion functions
             // to treat these kinds of parameters as if we were dealing with decibels. Storing this
             // as decibels is easier to work with, but requires a conversion for every sample.
