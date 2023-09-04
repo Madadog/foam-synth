@@ -12,7 +12,7 @@ use self::param_slider::ParamSlider;
 mod param_slider;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
-    IcedState::from_size(640, 480)
+    IcedState::from_size(900, 580)
 }
 
 pub(crate) fn create(
@@ -29,31 +29,12 @@ struct SynthPluginEditor {
     gain_slider_state: param_slider::State,
     scrollable: widget::scrollable::State,
 
-    osc1_amp: param_slider::State,
-    osc1_coarse: param_slider::State,
-    osc1_fine: param_slider::State,
-    osc1_freq_mult: param_slider::State,
-    osc1_freq_div: param_slider::State,
-    osc1_attack: param_slider::State,
-    osc1_decay: param_slider::State,
-    osc1_sustain: param_slider::State,
-    osc1_release: param_slider::State,
-    osc1_feedback: param_slider::State,
-    osc1_velocity_sensitivity: param_slider::State,
-    osc1_keyscaling: param_slider::State,
-
-    osc2_amp: param_slider::State,
-    osc2_coarse: param_slider::State,
-    osc2_fine: param_slider::State,
-    osc2_freq_mult: param_slider::State,
-    osc2_freq_div: param_slider::State,
-    osc2_attack: param_slider::State,
-    osc2_decay: param_slider::State,
-    osc2_sustain: param_slider::State,
-    osc2_release: param_slider::State,
-    osc2_feedback: param_slider::State,
-    osc2_velocity_sensitivity: param_slider::State,
-    osc2_keyscaling: param_slider::State,
+    osc_params_1: OscillatorWidget,
+    osc_params_2: OscillatorWidget,
+    osc_params_3: OscillatorWidget,
+    osc_params_4: OscillatorWidget,
+    osc_params_5: OscillatorWidget,
+    osc_params_6: OscillatorWidget,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -78,31 +59,12 @@ impl IcedEditor for SynthPluginEditor {
             gain_slider_state: Default::default(),
             scrollable: Default::default(),
 
-            osc1_amp: Default::default(),
-            osc1_coarse: Default::default(),
-            osc1_fine: Default::default(),
-            osc1_freq_mult: Default::default(),
-            osc1_freq_div: Default::default(),
-            osc1_attack: Default::default(),
-            osc1_decay: Default::default(),
-            osc1_sustain: Default::default(),
-            osc1_release: Default::default(),
-            osc1_feedback: Default::default(),
-            osc1_velocity_sensitivity: Default::default(),
-            osc1_keyscaling: Default::default(),
-
-            osc2_amp: Default::default(),
-            osc2_coarse: Default::default(),
-            osc2_fine: Default::default(),
-            osc2_freq_mult: Default::default(),
-            osc2_freq_div: Default::default(),
-            osc2_attack: Default::default(),
-            osc2_decay: Default::default(),
-            osc2_sustain: Default::default(),
-            osc2_release: Default::default(),
-            osc2_feedback: Default::default(),
-            osc2_velocity_sensitivity: Default::default(),
-            osc2_keyscaling: Default::default(),
+            osc_params_1: OscillatorWidget::new("Osc 1"),
+            osc_params_2: OscillatorWidget::new("Osc 2"),
+            osc_params_3: OscillatorWidget::new("Osc 3"),
+            osc_params_4: OscillatorWidget::new("Osc 4"),
+            osc_params_5: OscillatorWidget::new("Osc 5"),
+            osc_params_6: OscillatorWidget::new("Osc 6"),
         };
 
         (editor, Command::none())
@@ -129,316 +91,150 @@ impl IcedEditor for SynthPluginEditor {
             .width(Length::Fill)
             .align_items(Alignment::Center)
             .push(
-                Text::new("Foam Synth GUI")
-                    .font(assets::NOTO_SANS_LIGHT)
-                    .size(24)
-                    .width(Length::Fill)
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center),
+                Row::new()
+                .padding(Padding::from(10))
+                .spacing(20)
+                .push(
+                    Column::new()
+                    .align_items(Alignment::Fill)
+                    .push(
+                        Text::new("Foam Synth GUI")
+                            .font(assets::NOTO_SANS_LIGHT)
+                            .size(24)
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        Text::new("WARNING: GUI IS INCOMPLETE, DOES NOT EXPOSE ALL CONTROLS. CHECK THE DEFAULT VST3/CLAP GUI.")
+                            .font(assets::NOTO_SANS_BOLD)
+                            .size(12)
+                            .color(Color::from_rgb8(255, 80, 80))
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                )
+                .push(
+                    Column::new()
+                    .align_items(Alignment::Fill)
+                    .push(
+                        Text::new("Output Gain")
+                            .height(20.into())
+                            .width(Length::Fill)
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.gain_slider_state, &self.params.gain)
+                            .map(Message::ParamUpdate),
+                    )
+                )
             )
-            .push(
-                Text::new("WARNING: GUI IS INCOMPLETE, DOES NOT EXPOSE ALL CONTROLS. USE DEFAULT VST3/CLAP GUI INSTEAD.")
-                    .font(assets::NOTO_SANS_BOLD)
-                    .size(12)
-                    .width(Length::Fill)
-                    .color(Color::from_rgb8(255, 80, 80))
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center),
-            )
-            .push(
-                Text::new("Output Gain")
-                    .height(20.into())
-                    .width(Length::Fill)
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center),
-            )
-            .push(
-                ParamSlider::new(&mut self.gain_slider_state, &self.params.gain)
-                    .map(Message::ParamUpdate),
-            )
-            .push(Space::with_height(10.into()))
             .push(
                 // Layout oscillators horizontally
                 Row::new()
-                    .padding(Padding::from(10))
+                    .padding(Padding::from(5))
+                    .spacing(20)
                     .push(
-                        Column::new()
-                            .width(Length::Fill)
-                            .push(
-                                Text::new("Osc 1")
-                                    .height(20.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center),
-                            )
-                            .push(
-                                Row::new()
-                                    .push(
-                                        Column::new()
-                                            .push(Text::new("Amp."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_amp,
-                                                    &self.params.osc1_amp,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Attack"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_attack,
-                                                    &self.params.osc1_attack,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Decay"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_decay,
-                                                    &self.params.osc1_decay,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Sustain"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_sustain,
-                                                    &self.params.osc1_sustain,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Release"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_release,
-                                                    &self.params.osc1_release,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Velocity Sens."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_velocity_sensitivity,
-                                                    &self.params.osc1_velocity_sensitivity,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    )
-                                    .push(Space::with_width(10.into()))
-                                    .push(
-                                        Column::new()
-                                            .push(Text::new("Coarse Det."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_coarse,
-                                                    &self.params.osc1_coarse,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Fine Detune"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_fine,
-                                                    &self.params.osc1_fine,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Freq. Multiply"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_freq_mult,
-                                                    &self.params.osc1_freq_mult,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Freq. Divide"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_freq_div,
-                                                    &self.params.osc1_freq_div,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Feedback"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_feedback,
-                                                    &self.params.osc1_feedback,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Keyscaling"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc1_keyscaling,
-                                                    &self.params.osc1_keyscaling,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    ),
-                            ),
+                        self.osc_params_1.content(
+                            &self.params.osc1_amp,
+                            &self.params.osc1_coarse,
+                            &self.params.osc1_fine,
+                            &self.params.osc1_freq_mult,
+                            &self.params.osc1_freq_div,
+                            &self.params.osc1_attack,
+                            &self.params.osc1_decay,
+                            &self.params.osc1_sustain,
+                            &self.params.osc1_release,
+                            &self.params.osc1_feedback,
+                            &self.params.osc1_velocity_sensitivity,
+                            &self.params.osc1_keyscaling
+                        )
                     )
-                    .push(Space::with_width(10.into()))
                     .push(
-                        Column::new()
-                            .push(
-                                Text::new("Osc 2")
-                                    .height(20.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center),
-                            )
-                            .push(
-                                Row::new()
-                                    .push(
-                                        Column::new()
-                                            .push(Text::new("Amp."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_amp,
-                                                    &self.params.osc2_amp,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Attack"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_attack,
-                                                    &self.params.osc2_attack,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Decay"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_decay,
-                                                    &self.params.osc2_decay,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Sustain"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_sustain,
-                                                    &self.params.osc2_sustain,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Release"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_release,
-                                                    &self.params.osc2_release,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Velocity Sens."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_velocity_sensitivity,
-                                                    &self.params.osc2_velocity_sensitivity,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    )
-                                    .push(Space::with_width(10.into()))
-                                    .push(
-                                        Column::new()
-                                            .push(Text::new("Coarse Det."))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_coarse,
-                                                    &self.params.osc2_coarse,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Fine Detune"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_fine,
-                                                    &self.params.osc2_fine,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Freq. Multiply"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_freq_mult,
-                                                    &self.params.osc2_freq_mult,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Freq. Divide"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_freq_div,
-                                                    &self.params.osc2_freq_div,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Feedback"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_feedback,
-                                                    &self.params.osc2_feedback,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(Text::new("Keyscaling"))
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.osc2_keyscaling,
-                                                    &self.params.osc2_keyscaling,
-                                                )
-                                                .width(110.into())
-                                                .height(20.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    ),
-                            ),
-                    ),
+                        self.osc_params_2.content(
+                            &self.params.osc2_amp,
+                            &self.params.osc2_coarse,
+                            &self.params.osc2_fine,
+                            &self.params.osc2_freq_mult,
+                            &self.params.osc2_freq_div,
+                            &self.params.osc2_attack,
+                            &self.params.osc2_decay,
+                            &self.params.osc2_sustain,
+                            &self.params.osc2_release,
+                            &self.params.osc2_feedback,
+                            &self.params.osc2_velocity_sensitivity,
+                            &self.params.osc2_keyscaling
+                        )
+                    )
+                    .push(
+                        self.osc_params_3.content(
+                            &self.params.osc3_amp,
+                            &self.params.osc3_coarse,
+                            &self.params.osc3_fine,
+                            &self.params.osc3_freq_mult,
+                            &self.params.osc3_freq_div,
+                            &self.params.osc3_attack,
+                            &self.params.osc3_decay,
+                            &self.params.osc3_sustain,
+                            &self.params.osc3_release,
+                            &self.params.osc3_feedback,
+                            &self.params.osc3_velocity_sensitivity,
+                            &self.params.osc3_keyscaling
+                        )
+                    )
+                )
+            .push(
+                Row::new()
+                    .padding(Padding::from(5))
+                    .spacing(20)
+                    .push(
+                        self.osc_params_4.content(
+                            &self.params.osc4_amp,
+                            &self.params.osc4_coarse,
+                            &self.params.osc4_fine,
+                            &self.params.osc4_freq_mult,
+                            &self.params.osc4_freq_div,
+                            &self.params.osc4_attack,
+                            &self.params.osc4_decay,
+                            &self.params.osc4_sustain,
+                            &self.params.osc4_release,
+                            &self.params.osc4_feedback,
+                            &self.params.osc4_velocity_sensitivity,
+                            &self.params.osc4_keyscaling
+                        )
+                    )
+                    .push(
+                        self.osc_params_5.content(
+                            &self.params.osc5_amp,
+                            &self.params.osc5_coarse,
+                            &self.params.osc5_fine,
+                            &self.params.osc5_freq_mult,
+                            &self.params.osc5_freq_div,
+                            &self.params.osc5_attack,
+                            &self.params.osc5_decay,
+                            &self.params.osc5_sustain,
+                            &self.params.osc5_release,
+                            &self.params.osc5_feedback,
+                            &self.params.osc5_velocity_sensitivity,
+                            &self.params.osc5_keyscaling
+                        )
+                    )
+                    .push(
+                        self.osc_params_6.content(
+                            &self.params.osc6_amp,
+                            &self.params.osc6_coarse,
+                            &self.params.osc6_fine,
+                            &self.params.osc6_freq_mult,
+                            &self.params.osc6_freq_div,
+                            &self.params.osc6_attack,
+                            &self.params.osc6_decay,
+                            &self.params.osc6_sustain,
+                            &self.params.osc6_release,
+                            &self.params.osc6_feedback,
+                            &self.params.osc6_velocity_sensitivity,
+                            &self.params.osc6_keyscaling
+                        )
+                    )
             )
             // .push(
             //     nih_widgets::PeakMeter::new(
@@ -461,6 +257,7 @@ impl IcedEditor for SynthPluginEditor {
 }
 
 struct OscillatorWidget {
+    pub name: &'static str,
     pub amp: param_slider::State,
     pub coarse: param_slider::State,
     pub fine: param_slider::State,
@@ -476,8 +273,9 @@ struct OscillatorWidget {
 }
 
 impl OscillatorWidget {
-    fn new() -> Self {
+    fn new(name: &'static str) -> Self {
         Self {
+            name,
             amp: Default::default(),
             coarse: Default::default(),
             fine: Default::default(),
@@ -492,7 +290,7 @@ impl OscillatorWidget {
             keyscaling: Default::default(),
         }
     }
-    fn row<'a>(
+    fn content<'a>(
         &'a mut self,
         amp: &'a FloatParam,
         coarse: &'a FloatParam,
@@ -506,112 +304,125 @@ impl OscillatorWidget {
         feedback: &'a FloatParam,
         velocity_sensitivity: &'a FloatParam,
         keyscaling: &'a FloatParam,
-    ) -> Row<Message> {
-        Row::new().padding(Padding::from(10)).push(
-            Column::new()
-                .width(Length::Fill)
-                .push(
-                    Text::new("Osc 1")
-                        .height(20.into())
-                        .horizontal_alignment(alignment::Horizontal::Center),
-                )
-                .push(
-                    Row::new()
-                        .push(
-                            Column::new()
-                                .push(Text::new("Amp."))
-                                .push(
-                                    ParamSlider::new(&mut self.amp, amp)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Attack"))
-                                .push(
-                                    ParamSlider::new(&mut self.attack, attack)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Decay"))
-                                .push(
-                                    ParamSlider::new(&mut self.decay, decay)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Sustain"))
-                                .push(
-                                    ParamSlider::new(&mut self.sustain, sustain)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Release"))
-                                .push(
-                                    ParamSlider::new(&mut self.release, release)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Velocity Sens."))
-                                .push(
-                                    ParamSlider::new(
-                                        &mut self.velocity_sensitivity,
-                                        velocity_sensitivity,
-                                    )
-                                    .width(110.into())
-                                    .height(20.into())
+    ) -> Column<Message> {
+        let param_font_size = 16;
+        let slider_font_size = 18;
+        let slider_width = 80;
+        let slider_height = 20;
+        Column::new()
+            .push(
+                Text::new(self.name)
+                    .height(18.into())
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .font(assets::NOTO_SANS_BOLD),
+            )
+            .push(
+                Row::new()
+                    .push(
+                        Column::new()
+                            .push(Text::new("Amplitude").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.amp, amp)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
-                                ),
-                        )
-                        .push(Space::with_width(10.into()))
-                        .push(
-                            Column::new()
-                                .push(Text::new("Coarse Det."))
-                                .push(
-                                    ParamSlider::new(&mut self.coarse, coarse)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Attack").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.attack, attack)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Decay").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.decay, decay)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Sustain").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.sustain, sustain)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Release").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.release, release)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Velocity Sens.").size(param_font_size))
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.velocity_sensitivity,
+                                    velocity_sensitivity,
                                 )
-                                .push(Text::new("Fine Detune"))
-                                .push(
-                                    ParamSlider::new(&mut self.fine, fine)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Freq. Multiply"))
-                                .push(
-                                    ParamSlider::new(&mut self.freq_mult, freq_mult)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Freq. Divide"))
-                                .push(
-                                    ParamSlider::new(&mut self.freq_div, freq_div)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Feedback"))
-                                .push(
-                                    ParamSlider::new(&mut self.feedback, feedback)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                )
-                                .push(Text::new("Keyscaling"))
-                                .push(
-                                    ParamSlider::new(&mut self.keyscaling, keyscaling)
-                                        .width(110.into())
-                                        .height(20.into())
-                                        .map(Message::ParamUpdate),
-                                ),
-                        ),
-                ),
-        )
+                                .width(slider_width.into())
+                                .height(slider_height.into())
+                                .map(Message::ParamUpdate),
+                            ),
+                    )
+                    .push(Space::with_width(8.into()))
+                    .push(
+                        Column::new()
+                            .push(Text::new("Feedback").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.feedback, feedback)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Coarse Det.").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.coarse, coarse)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Fine Detune").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.fine, fine)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Freq. Multiply").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.freq_mult, freq_mult)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Freq. Divide").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.freq_div, freq_div)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Keyscaling").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.keyscaling, keyscaling)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            ),
+                    ),
+            )
     }
 }
