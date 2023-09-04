@@ -1,3 +1,4 @@
+use nih_plug::prelude::FloatParam;
 use nih_plug::prelude::{util, Editor, GuiContext};
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
@@ -132,6 +133,15 @@ impl IcedEditor for SynthPluginEditor {
                     .font(assets::NOTO_SANS_LIGHT)
                     .size(24)
                     .width(Length::Fill)
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .vertical_alignment(alignment::Vertical::Center),
+            )
+            .push(
+                Text::new("WARNING: GUI IS INCOMPLETE, DOES NOT EXPOSE ALL CONTROLS. USE DEFAULT VST3/CLAP GUI INSTEAD.")
+                    .font(assets::NOTO_SANS_BOLD)
+                    .size(12)
+                    .width(Length::Fill)
+                    .color(Color::from_rgb8(255, 80, 80))
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .vertical_alignment(alignment::Vertical::Center),
             )
@@ -447,5 +457,161 @@ impl IcedEditor for SynthPluginEditor {
             b: 0.98,
             a: 1.0,
         }
+    }
+}
+
+struct OscillatorWidget {
+    pub amp: param_slider::State,
+    pub coarse: param_slider::State,
+    pub fine: param_slider::State,
+    pub freq_mult: param_slider::State,
+    pub freq_div: param_slider::State,
+    pub attack: param_slider::State,
+    pub decay: param_slider::State,
+    pub sustain: param_slider::State,
+    pub release: param_slider::State,
+    pub feedback: param_slider::State,
+    pub velocity_sensitivity: param_slider::State,
+    pub keyscaling: param_slider::State,
+}
+
+impl OscillatorWidget {
+    fn new() -> Self {
+        Self {
+            amp: Default::default(),
+            coarse: Default::default(),
+            fine: Default::default(),
+            freq_mult: Default::default(),
+            freq_div: Default::default(),
+            attack: Default::default(),
+            decay: Default::default(),
+            sustain: Default::default(),
+            release: Default::default(),
+            feedback: Default::default(),
+            velocity_sensitivity: Default::default(),
+            keyscaling: Default::default(),
+        }
+    }
+    fn row<'a>(
+        &'a mut self,
+        amp: &'a FloatParam,
+        coarse: &'a FloatParam,
+        fine: &'a FloatParam,
+        freq_mult: &'a FloatParam,
+        freq_div: &'a FloatParam,
+        attack: &'a FloatParam,
+        decay: &'a FloatParam,
+        sustain: &'a FloatParam,
+        release: &'a FloatParam,
+        feedback: &'a FloatParam,
+        velocity_sensitivity: &'a FloatParam,
+        keyscaling: &'a FloatParam,
+    ) -> Row<Message> {
+        Row::new().padding(Padding::from(10)).push(
+            Column::new()
+                .width(Length::Fill)
+                .push(
+                    Text::new("Osc 1")
+                        .height(20.into())
+                        .horizontal_alignment(alignment::Horizontal::Center),
+                )
+                .push(
+                    Row::new()
+                        .push(
+                            Column::new()
+                                .push(Text::new("Amp."))
+                                .push(
+                                    ParamSlider::new(&mut self.amp, amp)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Attack"))
+                                .push(
+                                    ParamSlider::new(&mut self.attack, attack)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Decay"))
+                                .push(
+                                    ParamSlider::new(&mut self.decay, decay)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Sustain"))
+                                .push(
+                                    ParamSlider::new(&mut self.sustain, sustain)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Release"))
+                                .push(
+                                    ParamSlider::new(&mut self.release, release)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Velocity Sens."))
+                                .push(
+                                    ParamSlider::new(
+                                        &mut self.velocity_sensitivity,
+                                        velocity_sensitivity,
+                                    )
+                                    .width(110.into())
+                                    .height(20.into())
+                                    .map(Message::ParamUpdate),
+                                ),
+                        )
+                        .push(Space::with_width(10.into()))
+                        .push(
+                            Column::new()
+                                .push(Text::new("Coarse Det."))
+                                .push(
+                                    ParamSlider::new(&mut self.coarse, coarse)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Fine Detune"))
+                                .push(
+                                    ParamSlider::new(&mut self.fine, fine)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Freq. Multiply"))
+                                .push(
+                                    ParamSlider::new(&mut self.freq_mult, freq_mult)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Freq. Divide"))
+                                .push(
+                                    ParamSlider::new(&mut self.freq_div, freq_div)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Feedback"))
+                                .push(
+                                    ParamSlider::new(&mut self.feedback, feedback)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                )
+                                .push(Text::new("Keyscaling"))
+                                .push(
+                                    ParamSlider::new(&mut self.keyscaling, keyscaling)
+                                        .width(110.into())
+                                        .height(20.into())
+                                        .map(Message::ParamUpdate),
+                                ),
+                        ),
+                ),
+        )
     }
 }
