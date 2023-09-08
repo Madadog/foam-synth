@@ -284,8 +284,8 @@ impl Default for SynthPluginParams {
                 "Octave Stretch",
                 1.0,
                 FloatRange::Linear {
-                    min: 0.995,
-                    max: 1.005,
+                    min: 0.99,
+                    max: 1.01,
                 },
             ),
 
