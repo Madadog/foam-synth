@@ -1,11 +1,11 @@
 # Foam
-![Screenshot of UI](nogui.png)
+![Screenshot of UI](gui_v0.png)
 
-6 operator FM synth, available in the VST3 or CLAP plugin formats.
+6 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats.
 
 Open source under GPLv3.
 
-Currently has no GUI, relies on the host's default controls for VST/CLAP plugins. In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update. Also, the CLAP version has not been tested yet (though it probably still works).
+In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update. Also, the CLAP version has not been tested yet (though it should still work, file an issue if it doesn't!)
 
 Downloads [available at the releases page](https://github.com/Madadog/foam-synth/releases).
 
@@ -31,9 +31,9 @@ There are 6 feedback-capable sine oscillators, each with independent amplitude e
 
 The oscillators modulate each other via a 6x5 matrix, where every oscillator is connected to every other one (excluding itself, since feedback is a separate control with a greater range). It is possible to create cross-oscillator feedback loops (e.g. Osc1 and Osc2 both modulate each other) but they don't typically sound that good (not that I'm stopping you). The matrix is implemented by enforcing a 1-sample delay between oscillators.
 
-There is also a multimode filter (Simper SVF) on each voice, which can be controlled via an ADSR envelope.
+There is also a polyphonic multimode filter (Simper SVF), controllable via an ADSR envelope.
 
-Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a true FM synth, try setting it up in [Cardinal](https://github.com/DISTRHO/Cardinal).
+Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a classic modular-style (exponential-pitch) FM synth, it can be set up in [Cardinal](https://github.com/DISTRHO/Cardinal) (though it sounds metallic and is difficult to tune).
 
 ## Why
 
@@ -41,6 +41,7 @@ Made just for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed)
 
 * Build-your-own algorithm with the FM matrix
 * Feedback on every oscillator
+* 32-bit floating point for all audio
 
 ## Building
 
@@ -59,22 +60,40 @@ Thanks to [Codeium](https://codeium.com/) for filling out a lot of the boilerpla
 
 ## TODO:
 
-* Add GUI
-* Add panning
-* Add envelope Delay and Hold
-* Envelope slope controls?
-* Precalculate table for tuning approximation?
-* Add pitch bend control
-* Add phase control
-* Add LFO and pitch envelope
-* Make filter envelope independent of host block size
-* Add global volume envelope
-* Make filter keytracking actually work
-* Allow use of the filter in FM modulation
-* RM modulation
-* Oscillator sync
-* Legato, portamento
-* Add noise source somewhere
-* Rescale keyscaling, allow picking root key
-* Scala support?
-* Optimize
+* DSP:
+    * Add panning
+    * Add envelope Delay and Hold
+    * Control for envelope final release level
+    * Envelope slope controls?
+    * Precalculate table for tuning approximation?
+    * Add pitch bend control
+    * Add phase control
+    * Hertz-based detune
+    * Add LFO and pitch envelope
+    * Make filter envelope independent of host block size
+    * Add global volume envelope
+    * Toggle oscillators on/off
+    * Make filter keytracking actually work
+    * Allow use of the filter in FM modulation
+    * +/- FM modulation for all controls
+    * RM modulation
+    * Oscillator sync
+    * Legato, portamento
+    * Add noise source somewhere
+    * OPL2 waveform select
+    * Rescale keyscaling, allow picking root key
+    * Scala support?
+    * 8/16/24 bit integer FM calcs from Dexed? (for speed)
+    * Optimize
+
+* GUI:
+    * Label modulators & oscillators in matrix
+    * Move matrix to top-left
+    * Add feedback, amplitude & filter send to matrix
+    * Visualize envelopes & their settings
+    * Dark theme
+    * Oscilloscope / spectrogram
+
+* Code:
+    * Use `#[nested]` plugin parameters
+    * Use more constants for GUI dimensions
