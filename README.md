@@ -12,8 +12,8 @@ Downloads [available at the releases page](https://github.com/Madadog/foam-synth
 ## What
 
 There are 6 feedback-capable sine oscillators, each with independent amplitude envelopes. Each of the 6 oscillators has the following controls:
-* **Amp:** Direct output volume (after modulation, doesn't affect modulation)
-* **Feedback:** Oscillator tone/self-PM. Positive values produce a saw wave, negative values produce a square wave.
+* **Amp:** Direct output volume (post-modulation, doesn't affect modulation of other oscillators)
+* **Feedback:** Oscillator tone/self-PM. Positive values tend towards a saw wave, negative values towards a square wave.
 * **Frequency Controls:**
     * **Coarse:** Frequency shift in semitones
     * **Fine:** Frequency shift in cents
@@ -35,9 +35,13 @@ There is also a polyphonic multimode filter (Simper SVF), controllable via an AD
 
 Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a classic modular-style (exponential-pitch) FM synth, it can be set up in [Cardinal](https://github.com/DISTRHO/Cardinal) (though it sounds metallic and is difficult to tune).
 
+## Controls
+
+Click and drag to adjust slider values. CTRL+drag for fine adjustments. Right-click or SHIFT+click to type values in.
+
 ## Why
 
-Made just for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed) clone, except:
+Made for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed) clone, except:
 
 * Build-your-own algorithm with the FM matrix
 * Feedback on every oscillator
@@ -57,6 +61,13 @@ Thanks to [Surge XT](https://github.com/surge-synthesizer/surge) (and its develo
 Thanks to [NIH-plug](https://github.com/robbert-vdh/nih-plug) for being a great plugin framework.
 
 Thanks to [Codeium](https://codeium.com/) for filling out a lot of the boilerplate which would have been a pain to do manually (mostly plugin parameters).
+
+## License
+
+This project and all its files are licensed under the GPLv3 license.
+
+The following file/s are additionally available under the ISC license (indicated in the file header)
+* src/editor/param_slider.rs
 
 ## TODO:
 
