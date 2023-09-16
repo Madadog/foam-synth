@@ -277,7 +277,7 @@ pub struct Oscillator {
 impl Oscillator {
     fn new(midi_id: u8, params: &OscParams, velocity: f32) -> Self {
         let frequency = Oscillator::get_pitch(midi_id, params);
-        let keyscaling = 1.0 - params.keyscaling * (midi_id as f32 - 69.0) / 69.0;
+        let keyscaling = 2.0f32.powf((midi_id as f32 - 69.0) * -params.keyscaling / 12.0);
         Self {
             frequency,
             midi_id,

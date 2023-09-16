@@ -37,7 +37,7 @@ Technically this is a PM synth, but the terms PM/FM are often used interchangeab
 
 ## Controls
 
-Click and drag to adjust slider values. CTRL+drag for fine adjustments. Right-click or SHIFT+click to type values in.
+Click and drag to adjust slider values. Double click to reset to default. SHIFT+drag for fine adjustments. Right-click or CTRL+click to type values in.
 
 ## Why
 
@@ -92,10 +92,12 @@ The following file/s are additionally available under the ISC license (indicated
     * Legato, portamento
     * Add noise source somewhere
     * OPL2 waveform select
-    * Rescale keyscaling, allow picking root key
+    * Allow picking keyscaling root key
     * Scala support?
     * 8/16/24 bit integer FM calcs from Dexed? (for speed)
     * Optimize
+        * Enforce a minimum (constant?) block size
+        * Do all calcs on [f32; 4] arrays and hope for autovectorization (or use std (unstable) SIMD types)
 
 * GUI:
     * Label modulators & oscillators in matrix
@@ -108,3 +110,16 @@ The following file/s are additionally available under the ISC license (indicated
 * Code:
     * Use `#[nested]` plugin parameters
     * Use more constants for GUI dimensions
+
+* Lofty Wishlist
+    * Oversampling
+    * Oscillator wavetables
+    * MSEG modulators
+    * Modulation of all parameters
+    * Optional audio-rate/block-rate modulation
+    * Effects
+    * FM from/to sample player oscillator
+    * 2 filters, more filter types.
+    * Resizable GUI
+    * Good presets
+    * Add/remove oscillators
