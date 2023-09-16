@@ -32,11 +32,12 @@ use nih_plug_iced::{
     Element, Event, Font, Layout, Length, Point, Rectangle, Shell, Size, TextInput, Vector, Widget,
 };
 
-use nih_plug_iced::widgets::{ParamMessage, util};
+use nih_plug_iced::widgets::{util, ParamMessage};
 
 /// When shift+dragging a parameter, one pixel dragged corresponds to this much change in the
 /// noramlized parameter.
-const GRANULAR_DRAG_MULTIPLIER: f32 = 0.1;
+const GRANULAR_DRAG_MULTIPLIER: f32 = 0.5;
+const GRANULAR_DRAG_MULTIPLIER_SHIFT: f32 = 0.1;
 
 /// The thickness of this widget's borders.
 const BORDER_WIDTH: f32 = 1.0;
@@ -342,23 +343,20 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
                         shell.publish(ParamMessage::BeginSetParameter(self.param.as_ptr()));
                         self.set_normalized_value(shell, self.param.default_normalized_value());
                         shell.publish(ParamMessage::EndSetParameter(self.param.as_ptr()));
-                    } else if self.state.keyboard_modifiers.shift() {
-                        shell.publish(ParamMessage::BeginSetParameter(self.param.as_ptr()));
-                        self.state.drag_active = true;
-
-                        // When holding down shift while clicking on a parameter we want to
-                        // granuarly edit the parameter without jumping to a new value
-                        self.state.granular_drag_start_x_value =
-                            Some((cursor_position.x, self.param.modulated_normalized_value()));
                     } else {
                         shell.publish(ParamMessage::BeginSetParameter(self.param.as_ptr()));
                         self.state.drag_active = true;
 
-                        self.set_normalized_value(
-                            shell,
-                            util::remap_rect_x_coordinate(&bounds, cursor_position.x),
-                        );
-                        self.state.granular_drag_start_x_value = None;
+                        // We want to granuarly edit the parameter without jumping to a new value
+                        self.state.granular_drag_start_x_value =
+                            Some((cursor_position.x, self.param.modulated_normalized_value()));
+
+                        // // Absolute
+                        // self.set_normalized_value(
+                        //     shell,
+                        //     util::remap_rect_x_coordinate(&bounds, cursor_position.x),
+                        // );
+                        // self.state.granular_drag_start_x_value = None;
                     }
 
                     return event::Status::Captured;
@@ -389,32 +387,28 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
             | Event::Touch(touch::Event::FingerMoved { .. }) => {
                 // Don't do anything when we just reset the parameter because that would be weird
                 if self.state.drag_active {
-                    // If shift is being held then the drag should be more granular instead of
-                    // absolute
-                    if self.state.keyboard_modifiers.shift() {
-                        let (drag_start_x, drag_start_value) = *self
-                            .state
-                            .granular_drag_start_x_value
-                            .get_or_insert_with(|| {
-                                (cursor_position.x, self.param.modulated_normalized_value())
-                            });
-
-                        self.set_normalized_value(
-                            shell,
-                            util::remap_rect_x_coordinate(
-                                &bounds,
-                                util::remap_rect_x_t(&bounds, drag_start_value)
-                                    + (cursor_position.x - drag_start_x) * GRANULAR_DRAG_MULTIPLIER,
-                            ),
-                        );
+                    // If shift is being held then the drag should be more precise
+                    let granular_drag_multiplier = if self.state.keyboard_modifiers.shift() {
+                        GRANULAR_DRAG_MULTIPLIER_SHIFT
                     } else {
-                        self.state.granular_drag_start_x_value = None;
+                        GRANULAR_DRAG_MULTIPLIER
+                    };
+                    let (drag_start_x, drag_start_value) = *self
+                        .state
+                        .granular_drag_start_x_value
+                        .get_or_insert_with(|| {
+                            (cursor_position.x, self.param.modulated_normalized_value())
+                        });
 
-                        self.set_normalized_value(
-                            shell,
-                            util::remap_rect_x_coordinate(&bounds, cursor_position.x),
-                        );
-                    }
+                    self.set_normalized_value(
+                        shell,
+                        util::remap_rect_x_coordinate(
+                            &bounds,
+                            util::remap_rect_x_t(&bounds, drag_start_value)
+                                + (cursor_position.x - drag_start_x)
+                                    * granular_drag_multiplier,
+                        ),
+                    );
 
                     return event::Status::Captured;
                 }
@@ -426,14 +420,15 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
                 // position
                 if self.state.drag_active
                     && self.state.granular_drag_start_x_value.is_some()
-                    && !modifiers.shift()
+                    && modifiers.shift()
                 {
-                    self.state.granular_drag_start_x_value = None;
+                    self.state.granular_drag_start_x_value =
+                        Some((cursor_position.x, self.param.modulated_normalized_value()));
 
-                    self.set_normalized_value(
-                        shell,
-                        util::remap_rect_x_coordinate(&bounds, cursor_position.x),
-                    );
+                    // self.set_normalized_value(
+                    //     shell,
+                    //     util::remap_rect_x_coordinate(&bounds, cursor_position.x),
+                    // );
                 }
 
                 return event::Status::Captured;
@@ -543,7 +538,30 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
 
             // To make it more readable (and because it looks cool), the parts that overlap with the
             // fill rect will be rendered in white while the rest will be rendered in black.
-            let display_value = self.param.to_string();
+            // let display_value = self.param.to_string();
+            
+            let mut display_value = self.param.to_string();//self.param.normalized_value_to_string(self.param.unmodulated_plain_value(), false);
+
+            // This sucks, but NIH_plug doesn't let us get the plain value even as a string, so
+            // we have to work backwards and truncate the full value which may or may not have a unit after it...
+            let mut decimal_index = None;
+            let mut unit_index = None;
+            for (i, char) in display_value.char_indices() {
+                if decimal_index.is_some() {
+                    if !char.is_ascii_digit() {
+                        unit_index = Some(i);
+                        break;
+                    }
+                } else if char == '.' {
+                    decimal_index = Some(i);
+                }
+            }
+            if let Some(length) = decimal_index {
+                let new_length = unit_index.unwrap_or(length + 4).min(length + 4);
+                display_value.truncate(new_length);
+                display_value.push_str(self.param.unit());
+            }
+            let display_string = format!("{}", display_value);
             let text_size = self.text_size.unwrap_or_else(|| renderer.default_size()) as f32;
             let text_bounds = Rectangle {
                 x: bounds.center_x(),
@@ -551,7 +569,7 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
                 ..bounds
             };
             renderer.fill_text(text::Text {
-                content: &display_value,
+                content: &display_string,
                 font: self.font,
                 size: text_size,
                 bounds: text_bounds,
@@ -564,7 +582,7 @@ impl<'a, P: Param> Widget<ParamMessage, Renderer> for ParamSlider<'a, P> {
             renderer.with_layer(fill_rect, |renderer| {
                 let filled_text_color = Color::from_rgb8(80, 80, 80);
                 renderer.fill_text(text::Text {
-                    content: &display_value,
+                    content: &display_string,
                     font: self.font,
                     size: text_size,
                     bounds: text_bounds,
