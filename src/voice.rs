@@ -69,36 +69,84 @@ impl Voice {
     pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 5]; 6]) -> f32 {
         self.time += 1;
         let matrix = [
-            pm_matrix[0][0] * self.oscillators[1].previous()
-                + pm_matrix[0][1] * self.oscillators[2].previous()
-                + pm_matrix[0][2] * self.oscillators[3].previous()
-                + pm_matrix[0][3] * self.oscillators[4].previous()
-                + pm_matrix[0][4] * self.oscillators[5].previous(),
-            pm_matrix[1][0] * self.oscillators[0].previous()
-                + pm_matrix[1][1] * self.oscillators[2].previous()
-                + pm_matrix[1][2] * self.oscillators[3].previous()
-                + pm_matrix[1][3] * self.oscillators[4].previous()
-                + pm_matrix[1][4] * self.oscillators[5].previous(),
-            pm_matrix[2][0] * self.oscillators[0].previous()
-                + pm_matrix[2][1] * self.oscillators[1].previous()
-                + pm_matrix[2][2] * self.oscillators[3].previous()
-                + pm_matrix[2][3] * self.oscillators[4].previous()
-                + pm_matrix[2][4] * self.oscillators[5].previous(),
-            pm_matrix[3][0] * self.oscillators[0].previous()
-                + pm_matrix[3][1] * self.oscillators[1].previous()
-                + pm_matrix[3][2] * self.oscillators[2].previous()
-                + pm_matrix[3][3] * self.oscillators[4].previous()
-                + pm_matrix[3][4] * self.oscillators[5].previous(),
-            pm_matrix[4][0] * self.oscillators[0].previous()
-                + pm_matrix[4][1] * self.oscillators[1].previous()
-                + pm_matrix[4][2] * self.oscillators[2].previous()
-                + pm_matrix[4][3] * self.oscillators[3].previous()
-                + pm_matrix[4][4] * self.oscillators[5].previous(),
-            pm_matrix[5][0] * self.oscillators[0].previous()
-                + pm_matrix[5][1] * self.oscillators[1].previous()
-                + pm_matrix[5][2] * self.oscillators[2].previous()
-                + pm_matrix[5][3] * self.oscillators[3].previous()
-                + pm_matrix[5][4] * self.oscillators[4].previous(),
+            pm_matrix[0][0].mul_add(
+                self.oscillators[1].previous(),
+                pm_matrix[0][1].mul_add(
+                    self.oscillators[2].previous(),
+                    pm_matrix[0][2].mul_add(
+                        self.oscillators[3].previous(),
+                        pm_matrix[0][3].mul_add(
+                            self.oscillators[4].previous(),
+                            pm_matrix[0][4] * self.oscillators[5].previous(),
+                        ),
+                    ),
+                ),
+            ),
+            pm_matrix[1][0].mul_add(
+                self.oscillators[0].previous(),
+                pm_matrix[1][1].mul_add(
+                    self.oscillators[2].previous(),
+                    pm_matrix[1][2].mul_add(
+                        self.oscillators[3].previous(),
+                        pm_matrix[1][3].mul_add(
+                            self.oscillators[4].previous(),
+                            pm_matrix[1][4] * self.oscillators[5].previous(),
+                        ),
+                    ),
+                ),
+            ),
+            pm_matrix[2][0].mul_add(
+                self.oscillators[0].previous(),
+                pm_matrix[2][1].mul_add(
+                    self.oscillators[1].previous(),
+                    pm_matrix[2][2].mul_add(
+                        self.oscillators[3].previous(),
+                        pm_matrix[2][3].mul_add(
+                            self.oscillators[4].previous(),
+                            pm_matrix[2][4] * self.oscillators[5].previous(),
+                        ),
+                    ),
+                ),
+            ),
+            pm_matrix[3][0].mul_add(
+                self.oscillators[0].previous(),
+                pm_matrix[3][1].mul_add(
+                    self.oscillators[1].previous(),
+                    pm_matrix[3][2].mul_add(
+                        self.oscillators[2].previous(),
+                        pm_matrix[3][3].mul_add(
+                            self.oscillators[4].previous(),
+                            pm_matrix[3][4] * self.oscillators[5].previous(),
+                        ),
+                    ),
+                ),
+            ),
+            pm_matrix[4][0].mul_add(
+                self.oscillators[0].previous(),
+                pm_matrix[4][1].mul_add(
+                    self.oscillators[1].previous(),
+                    pm_matrix[4][2].mul_add(
+                        self.oscillators[2].previous(),
+                        pm_matrix[4][3].mul_add(
+                            self.oscillators[3].previous(),
+                            pm_matrix[4][4] * self.oscillators[5].previous(),
+                        ),
+                    ),
+                ),
+            ),
+            pm_matrix[5][0].mul_add(
+                self.oscillators[0].previous(),
+                pm_matrix[5][1].mul_add(
+                    self.oscillators[1].previous(),
+                    pm_matrix[5][2].mul_add(
+                        self.oscillators[2].previous(),
+                        pm_matrix[5][3].mul_add(
+                            self.oscillators[3].previous(),
+                            pm_matrix[5][4] * self.oscillators[4].previous(),
+                        ),
+                    ),
+                ),
+            ),
         ];
         let out = self
             .oscillators
