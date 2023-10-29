@@ -297,7 +297,7 @@ pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f
     if time < attack {
         time / attack
     } else if time < attack + decay {
-        (1.0 - ((time - attack) / decay)).powi(2) * (1.0 - sustain) + sustain
+        (1.0 - ((time - attack) / decay)).powf(2.0) * (1.0 - sustain) + sustain
     } else {
         sustain
     }

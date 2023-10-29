@@ -1,5 +1,6 @@
 use nih_plug::prelude::FloatParam;
 use nih_plug::prelude::{util, Editor, GuiContext};
+use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
 use nih_plug_iced::*;
@@ -10,6 +11,7 @@ use crate::parameters::SynthPluginParams;
 use self::param_slider::ParamSlider;
 
 mod param_slider;
+mod envelope;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
     IcedState::from_size(900, 580)
@@ -118,6 +120,7 @@ impl IcedEditor for SynthPluginEditor {
         Scrollable::new(&mut self.scrollable)
             .width(Length::Fill)
             .align_items(Alignment::Center)
+            .push(Image::new(image::Handle::from_pixels(2, 2, vec![0, 0, 0, 255])))
             .push(
                 Row::new()
                     .padding(Padding::from(10))
