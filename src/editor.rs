@@ -120,7 +120,7 @@ impl IcedEditor for SynthPluginEditor {
         Scrollable::new(&mut self.scrollable)
             .width(Length::Fill)
             .align_items(Alignment::Center)
-            .push(Image::new(image::Handle::from_pixels(2, 2, vec![0, 0, 0, 255])))
+            // .push(Image::new(image::Handle::from_pixels(2, 2, vec![0, 0, 0, 255])))
             .push(
                 Row::new()
                     .padding(Padding::from(10))
