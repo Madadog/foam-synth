@@ -23,7 +23,7 @@ const FREQ_MULT_DIV_RANGE: FloatRange = FloatRange::Skewed {
 const FM_RANGE: FloatRange = FloatRange::Skewed {
     min: 0.0,
     max: 1.0,
-    factor: 0.7,
+    factor: 0.4,
 };
 
 #[derive(Params)]
@@ -171,6 +171,10 @@ pub struct SynthPluginParams {
     pub mod_osc1_by_osc5: FloatParam,
     #[id = "mod_osc1_by_osc6"]
     pub mod_osc1_by_osc6: FloatParam,
+    #[id = "mod_osc1_by_osc7"]
+    pub mod_osc1_by_osc7: FloatParam,
+    #[id = "mod_osc1_by_osc8"]
+    pub mod_osc1_by_osc8: FloatParam,
 
     #[id = "mod_osc2_by_osc1"]
     pub mod_osc2_by_osc1: FloatParam,
@@ -182,6 +186,10 @@ pub struct SynthPluginParams {
     pub mod_osc2_by_osc5: FloatParam,
     #[id = "mod_osc2_by_osc6"]
     pub mod_osc2_by_osc6: FloatParam,
+    #[id = "mod_osc2_by_osc7"]
+    pub mod_osc2_by_osc7: FloatParam,
+    #[id = "mod_osc2_by_osc8"]
+    pub mod_osc2_by_osc8: FloatParam,
 
     #[id = "mod_osc3_by_osc1"]
     pub mod_osc3_by_osc1: FloatParam,
@@ -193,6 +201,10 @@ pub struct SynthPluginParams {
     pub mod_osc3_by_osc5: FloatParam,
     #[id = "mod_osc3_by_osc6"]
     pub mod_osc3_by_osc6: FloatParam,
+    #[id = "mod_osc3_by_osc7"]
+    pub mod_osc3_by_osc7: FloatParam,
+    #[id = "mod_osc3_by_osc8"]
+    pub mod_osc3_by_osc8: FloatParam,
 
     #[id = "mod_osc4_by_osc1"]
     pub mod_osc4_by_osc1: FloatParam,
@@ -204,6 +216,10 @@ pub struct SynthPluginParams {
     pub mod_osc4_by_osc5: FloatParam,
     #[id = "mod_osc4_by_osc6"]
     pub mod_osc4_by_osc6: FloatParam,
+    #[id = "mod_osc4_by_osc7"]
+    pub mod_osc4_by_osc7: FloatParam,
+    #[id = "mod_osc4_by_osc8"]
+    pub mod_osc4_by_osc8: FloatParam,
 
     #[id = "mod_osc5_by_osc1"]
     pub mod_osc5_by_osc1: FloatParam,
@@ -215,6 +231,10 @@ pub struct SynthPluginParams {
     pub mod_osc5_by_osc4: FloatParam,
     #[id = "mod_osc5_by_osc6"]
     pub mod_osc5_by_osc6: FloatParam,
+    #[id = "mod_osc5_by_osc7"]
+    pub mod_osc5_by_osc7: FloatParam,
+    #[id = "mod_osc5_by_osc8"]
+    pub mod_osc5_by_osc8: FloatParam,
 
     #[id = "mod_osc6_by_osc1"]
     pub mod_osc6_by_osc1: FloatParam,
@@ -226,28 +246,55 @@ pub struct SynthPluginParams {
     pub mod_osc6_by_osc4: FloatParam,
     #[id = "mod_osc6_by_osc5"]
     pub mod_osc6_by_osc5: FloatParam,
+    #[id = "mod_osc6_by_osc7"]
+    pub mod_osc6_by_osc7: FloatParam,
+    #[id = "mod_osc6_by_osc8"]
+    pub mod_osc6_by_osc8: FloatParam,
+    
+    #[id = "mod_osc7_by_osc1"]
+    pub mod_osc7_by_osc1: FloatParam,
+    #[id = "mod_osc7_by_osc2"]
+    pub mod_osc7_by_osc2: FloatParam,
+    #[id = "mod_osc7_by_osc3"]
+    pub mod_osc7_by_osc3: FloatParam,
+    #[id = "mod_osc7_by_osc4"]
+    pub mod_osc7_by_osc4: FloatParam,
+    #[id = "mod_osc7_by_osc5"]
+    pub mod_osc7_by_osc5: FloatParam,
+    #[id = "mod_osc7_by_osc6"]
+    pub mod_osc7_by_osc6: FloatParam,
+    #[id = "mod_osc7_by_osc8"]
+    pub mod_osc7_by_osc8: FloatParam,
+    
+    #[id = "mod_osc8_by_osc1"]
+    pub mod_osc8_by_osc1: FloatParam,
+    #[id = "mod_osc8_by_osc2"]
+    pub mod_osc8_by_osc2: FloatParam,
+    #[id = "mod_osc8_by_osc3"]
+    pub mod_osc8_by_osc3: FloatParam,
+    #[id = "mod_osc8_by_osc4"]
+    pub mod_osc8_by_osc4: FloatParam,
+    #[id = "mod_osc8_by_osc5"]
+    pub mod_osc8_by_osc5: FloatParam,
+    #[id = "mod_osc8_by_osc6"]
+    pub mod_osc8_by_osc6: FloatParam,
+    #[id = "mod_osc8_by_osc7"]
+    pub mod_osc8_by_osc7: FloatParam,
 
     #[nested(group = "osc1", id_prefix = "osc1")]
     pub osc1_params: OscillatorParams,
-
     #[nested(group = "osc2", id_prefix = "osc2")]
     pub osc2_params: OscillatorParams,
-
     #[nested(group = "osc3", id_prefix = "osc3")]
     pub osc3_params: OscillatorParams,
-
     #[nested(group = "osc4", id_prefix = "osc4")]
     pub osc4_params: OscillatorParams,
-
     #[nested(group = "osc5", id_prefix = "osc5")]
     pub osc5_params: OscillatorParams,
-
     #[nested(group = "osc6", id_prefix = "osc6")]
     pub osc6_params: OscillatorParams,
-
     #[nested(group = "osc7", id_prefix = "osc7")]
     pub osc7_params: OscillatorParams,
-    
     #[nested(group = "osc8", id_prefix = "osc8")]
     pub osc8_params: OscillatorParams,
 
@@ -288,7 +335,7 @@ impl Default for SynthPluginParams {
                     max: util::db_to_gain(0.0),
                     // This makes the range appear as if it was linear when displaying the values as
                     // decibels
-                    factor: 1.0,
+                    factor: FloatRange::gain_skew_factor(util::db_to_gain(-70.0), util::db_to_gain(0.0)),
                 },
             )
             // Because the gain parameter is stored as linear gain instead of storing the value as
@@ -314,36 +361,64 @@ impl Default for SynthPluginParams {
             mod_osc1_by_osc4: FloatParam::new("Mod Osc1 by Osc4", 0.0, FM_RANGE),
             mod_osc1_by_osc5: FloatParam::new("Mod Osc1 by Osc5", 0.0, FM_RANGE),
             mod_osc1_by_osc6: FloatParam::new("Mod Osc1 by Osc6", 0.0, FM_RANGE),
+            mod_osc1_by_osc7: FloatParam::new("Mod Osc1 by Osc7", 0.0, FM_RANGE),
+            mod_osc1_by_osc8: FloatParam::new("Mod Osc1 by Osc8", 0.0, FM_RANGE),
 
             mod_osc2_by_osc1: FloatParam::new("Mod Osc2 by Osc1", 0.0, FM_RANGE),
             mod_osc2_by_osc3: FloatParam::new("Mod Osc2 by Osc3", 0.0, FM_RANGE),
             mod_osc2_by_osc4: FloatParam::new("Mod Osc2 by Osc4", 0.0, FM_RANGE),
             mod_osc2_by_osc5: FloatParam::new("Mod Osc2 by Osc5", 0.0, FM_RANGE),
             mod_osc2_by_osc6: FloatParam::new("Mod Osc2 by Osc6", 0.0, FM_RANGE),
+            mod_osc2_by_osc7: FloatParam::new("Mod Osc2 by Osc7", 0.0, FM_RANGE),
+            mod_osc2_by_osc8: FloatParam::new("Mod Osc2 by Osc8", 0.0, FM_RANGE),
 
             mod_osc3_by_osc1: FloatParam::new("Mod Osc3 by Osc1", 0.0, FM_RANGE),
             mod_osc3_by_osc2: FloatParam::new("Mod Osc3 by Osc2", 0.0, FM_RANGE),
             mod_osc3_by_osc4: FloatParam::new("Mod Osc3 by Osc4", 0.0, FM_RANGE),
             mod_osc3_by_osc5: FloatParam::new("Mod Osc3 by Osc5", 0.0, FM_RANGE),
             mod_osc3_by_osc6: FloatParam::new("Mod Osc3 by Osc6", 0.0, FM_RANGE),
+            mod_osc3_by_osc7: FloatParam::new("Mod Osc3 by Osc7", 0.0, FM_RANGE),
+            mod_osc3_by_osc8: FloatParam::new("Mod Osc3 by Osc8", 0.0, FM_RANGE),
 
             mod_osc4_by_osc1: FloatParam::new("Mod Osc4 by Osc1", 0.0, FM_RANGE),
             mod_osc4_by_osc2: FloatParam::new("Mod Osc4 by Osc2", 0.0, FM_RANGE),
             mod_osc4_by_osc3: FloatParam::new("Mod Osc4 by Osc3", 0.0, FM_RANGE),
             mod_osc4_by_osc5: FloatParam::new("Mod Osc4 by Osc5", 0.0, FM_RANGE),
             mod_osc4_by_osc6: FloatParam::new("Mod Osc4 by Osc6", 0.0, FM_RANGE),
+            mod_osc4_by_osc7: FloatParam::new("Mod Osc4 by Osc7", 0.0, FM_RANGE),
+            mod_osc4_by_osc8: FloatParam::new("Mod Osc4 by Osc8", 0.0, FM_RANGE),
 
             mod_osc5_by_osc1: FloatParam::new("Mod Osc5 by Osc1", 0.0, FM_RANGE),
             mod_osc5_by_osc2: FloatParam::new("Mod Osc5 by Osc2", 0.0, FM_RANGE),
             mod_osc5_by_osc3: FloatParam::new("Mod Osc5 by Osc3", 0.0, FM_RANGE),
             mod_osc5_by_osc4: FloatParam::new("Mod Osc5 by Osc4", 0.0, FM_RANGE),
             mod_osc5_by_osc6: FloatParam::new("Mod Osc5 by Osc6", 0.0, FM_RANGE),
+            mod_osc5_by_osc7: FloatParam::new("Mod Osc5 by Osc7", 0.0, FM_RANGE),
+            mod_osc5_by_osc8: FloatParam::new("Mod Osc5 by Osc8", 0.0, FM_RANGE),
 
             mod_osc6_by_osc1: FloatParam::new("Mod Osc6 by Osc1", 0.0, FM_RANGE),
             mod_osc6_by_osc2: FloatParam::new("Mod Osc6 by Osc2", 0.0, FM_RANGE),
             mod_osc6_by_osc3: FloatParam::new("Mod Osc6 by Osc3", 0.0, FM_RANGE),
             mod_osc6_by_osc4: FloatParam::new("Mod Osc6 by Osc4", 0.0, FM_RANGE),
             mod_osc6_by_osc5: FloatParam::new("Mod Osc6 by Osc5", 0.0, FM_RANGE),
+            mod_osc6_by_osc7: FloatParam::new("Mod Osc6 by Osc7", 0.0, FM_RANGE),
+            mod_osc6_by_osc8: FloatParam::new("Mod Osc6 by Osc8", 0.0, FM_RANGE),
+
+            mod_osc7_by_osc1: FloatParam::new("Mod Osc7 by Osc1", 0.0, FM_RANGE),
+            mod_osc7_by_osc2: FloatParam::new("Mod Osc7 by Osc2", 0.0, FM_RANGE),
+            mod_osc7_by_osc3: FloatParam::new("Mod Osc7 by Osc3", 0.0, FM_RANGE),
+            mod_osc7_by_osc4: FloatParam::new("Mod Osc7 by Osc4", 0.0, FM_RANGE),
+            mod_osc7_by_osc5: FloatParam::new("Mod Osc7 by Osc5", 0.0, FM_RANGE),
+            mod_osc7_by_osc6: FloatParam::new("Mod Osc7 by Osc6", 0.0, FM_RANGE),
+            mod_osc7_by_osc8: FloatParam::new("Mod Osc7 by Osc8", 0.0, FM_RANGE),
+
+            mod_osc8_by_osc1: FloatParam::new("Mod Osc8 by Osc1", 0.0, FM_RANGE),
+            mod_osc8_by_osc2: FloatParam::new("Mod Osc8 by Osc2", 0.0, FM_RANGE),
+            mod_osc8_by_osc3: FloatParam::new("Mod Osc8 by Osc3", 0.0, FM_RANGE),
+            mod_osc8_by_osc4: FloatParam::new("Mod Osc8 by Osc4", 0.0, FM_RANGE),
+            mod_osc8_by_osc5: FloatParam::new("Mod Osc8 by Osc5", 0.0, FM_RANGE),
+            mod_osc8_by_osc6: FloatParam::new("Mod Osc8 by Osc6", 0.0, FM_RANGE),
+            mod_osc8_by_osc7: FloatParam::new("Mod Osc8 by Osc7", 0.0, FM_RANGE),
 
             osc1_params: OscillatorParams::new(0, 100.0),
             osc2_params: OscillatorParams::new(1, 0.0),
@@ -359,14 +434,15 @@ impl Default for SynthPluginParams {
             filter_cutoff: FloatParam::new(
                 "Filter Cutoff",
                 22000.0,
-                FloatRange::Linear {
+                FloatRange::Skewed {
                     min: 20.0,
                     max: 22000.0,
+                    factor: FloatRange::skew_factor(-2.0),
                 },
             ),
             filter_resonance: FloatParam::new(
                 "Filter Resonance",
-                0.0,
+                0.3,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             filter_keytrack: FloatParam::new(

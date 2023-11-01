@@ -10,11 +10,11 @@ use crate::parameters::SynthPluginParams;
 
 use self::param_slider::ParamSlider;
 
-mod param_slider;
 mod envelope;
+mod param_slider;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
-    IcedState::from_size(900, 580)
+    IcedState::from_size(1000, 700)
 }
 
 pub(crate) fn create(
@@ -143,164 +143,35 @@ impl IcedEditor for SynthPluginEditor {
                             .push(
                                 ParamSlider::new(&mut self.gain_slider_state, &self.params.gain)
                                     .height(20.into())
+                                    .width(100.into())
                                     .map(Message::ParamUpdate),
-                            )
+                                )
                             .push(
                                 Text::new("Octave Stretch")
-                                    .size(16)
+                                .size(16)
                                     .width(Length::Fill)
                                     .horizontal_alignment(alignment::Horizontal::Center)
                                     .vertical_alignment(alignment::Vertical::Center),
-                            )
+                                )
                             .push(
                                 ParamSlider::new(
                                     &mut self.octave_stretch_slider_state,
                                     &self.params.octave_stretch,
                                 )
                                 .height(20.into())
+                                .width(100.into())
                                 .map(Message::ParamUpdate),
                             ),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .push(
-                        Column::new()
-                            .push(
-                                // Layout oscillators horizontally
-                                Row::new()
-                                    .padding(Padding::from(5))
-                                    .spacing(20)
-                                    .push(self.osc_params_1.content(
-                                        &self.params.osc1_params.amp,
-                                        &self.params.osc1_params.coarse,
-                                        &self.params.osc1_params.fine,
-                                        &self.params.osc1_params.freq_mult,
-                                        &self.params.osc1_params.freq_div,
-                                        &self.params.osc1_params.attack,
-                                        &self.params.osc1_params.decay,
-                                        &self.params.osc1_params.sustain,
-                                        &self.params.osc1_params.release,
-                                        &self.params.osc1_params.feedback,
-                                        &self.params.osc1_params.velocity_sensitivity,
-                                        &self.params.osc1_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_2.content(
-                                        &self.params.osc2_params.amp,
-                                        &self.params.osc2_params.coarse,
-                                        &self.params.osc2_params.fine,
-                                        &self.params.osc2_params.freq_mult,
-                                        &self.params.osc2_params.freq_div,
-                                        &self.params.osc2_params.attack,
-                                        &self.params.osc2_params.decay,
-                                        &self.params.osc2_params.sustain,
-                                        &self.params.osc2_params.release,
-                                        &self.params.osc2_params.feedback,
-                                        &self.params.osc2_params.velocity_sensitivity,
-                                        &self.params.osc2_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_3.content(
-                                        &self.params.osc3_params.amp,
-                                        &self.params.osc3_params.coarse,
-                                        &self.params.osc3_params.fine,
-                                        &self.params.osc3_params.freq_mult,
-                                        &self.params.osc3_params.freq_div,
-                                        &self.params.osc3_params.attack,
-                                        &self.params.osc3_params.decay,
-                                        &self.params.osc3_params.sustain,
-                                        &self.params.osc3_params.release,
-                                        &self.params.osc3_params.feedback,
-                                        &self.params.osc3_params.velocity_sensitivity,
-                                        &self.params.osc3_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_4.content(
-                                        &self.params.osc4_params.amp,
-                                        &self.params.osc4_params.coarse,
-                                        &self.params.osc4_params.fine,
-                                        &self.params.osc4_params.freq_mult,
-                                        &self.params.osc4_params.freq_div,
-                                        &self.params.osc4_params.attack,
-                                        &self.params.osc4_params.decay,
-                                        &self.params.osc4_params.sustain,
-                                        &self.params.osc4_params.release,
-                                        &self.params.osc4_params.feedback,
-                                        &self.params.osc4_params.velocity_sensitivity,
-                                        &self.params.osc4_params.keyscaling,
-                                    )),
-                            )
-                            .push(
-                                Row::new()
-                                    .padding(Padding::from(5))
-                                    .spacing(20)
-                                    .push(self.osc_params_5.content(
-                                        &self.params.osc5_params.amp,
-                                        &self.params.osc5_params.coarse,
-                                        &self.params.osc5_params.fine,
-                                        &self.params.osc5_params.freq_mult,
-                                        &self.params.osc5_params.freq_div,
-                                        &self.params.osc5_params.attack,
-                                        &self.params.osc5_params.decay,
-                                        &self.params.osc5_params.sustain,
-                                        &self.params.osc5_params.release,
-                                        &self.params.osc5_params.feedback,
-                                        &self.params.osc5_params.velocity_sensitivity,
-                                        &self.params.osc5_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_6.content(
-                                        &self.params.osc6_params.amp,
-                                        &self.params.osc6_params.coarse,
-                                        &self.params.osc6_params.fine,
-                                        &self.params.osc6_params.freq_mult,
-                                        &self.params.osc6_params.freq_div,
-                                        &self.params.osc6_params.attack,
-                                        &self.params.osc6_params.decay,
-                                        &self.params.osc6_params.sustain,
-                                        &self.params.osc6_params.release,
-                                        &self.params.osc6_params.feedback,
-                                        &self.params.osc6_params.velocity_sensitivity,
-                                        &self.params.osc6_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_7.content(
-                                        &self.params.osc7_params.amp,
-                                        &self.params.osc7_params.coarse,
-                                        &self.params.osc7_params.fine,
-                                        &self.params.osc7_params.freq_mult,
-                                        &self.params.osc7_params.freq_div,
-                                        &self.params.osc7_params.attack,
-                                        &self.params.osc7_params.decay,
-                                        &self.params.osc7_params.sustain,
-                                        &self.params.osc7_params.release,
-                                        &self.params.osc7_params.feedback,
-                                        &self.params.osc7_params.velocity_sensitivity,
-                                        &self.params.osc7_params.keyscaling,
-                                    ))
-                                    .push(self.osc_params_8.content(
-                                        &self.params.osc8_params.amp,
-                                        &self.params.osc8_params.coarse,
-                                        &self.params.osc8_params.fine,
-                                        &self.params.osc8_params.freq_mult,
-                                        &self.params.osc8_params.freq_div,
-                                        &self.params.osc8_params.attack,
-                                        &self.params.osc8_params.decay,
-                                        &self.params.osc8_params.sustain,
-                                        &self.params.osc8_params.release,
-                                        &self.params.osc8_params.feedback,
-                                        &self.params.osc8_params.velocity_sensitivity,
-                                        &self.params.osc8_params.keyscaling,
-                                    )),
-                            ),
                     )
+                    .push(self.matrix.ui_matrix(&self.params))
                     .push(
                         Column::new()
                             .padding(Padding::new(10))
-                            .push(self.matrix.ui_matrix(&self.params))
-                            .push(Space::with_height(20.into()))
+                            // .push(Space::with_height(20.into()))
                             .push(
                                 Text::new("Filter")
                                     .height(18.into())
-                                    .horizontal_alignment(
-                                        alignment::Horizontal::Center,
-                                    )
+                                    .horizontal_alignment(alignment::Horizontal::Center)
                                     .font(assets::NOTO_SANS_BOLD),
                             )
                             .push(
@@ -485,6 +356,134 @@ impl IcedEditor for SynthPluginEditor {
                             ),
                     ),
             )
+            .push(
+                Row::new().push(
+                    Column::new()
+                        .push(
+                            // Layout oscillators horizontally
+                            Row::new()
+                                .padding(Padding::from(5))
+                                .spacing(20)
+                                .push(self.osc_params_1.content(
+                                    &self.params.osc1_params.amp,
+                                    &self.params.osc1_params.coarse,
+                                    &self.params.osc1_params.fine,
+                                    &self.params.osc1_params.freq_mult,
+                                    &self.params.osc1_params.freq_div,
+                                    &self.params.osc1_params.attack,
+                                    &self.params.osc1_params.decay,
+                                    &self.params.osc1_params.sustain,
+                                    &self.params.osc1_params.release,
+                                    &self.params.osc1_params.feedback,
+                                    &self.params.osc1_params.velocity_sensitivity,
+                                    &self.params.osc1_params.keyscaling,
+                                ))
+                                .push(self.osc_params_2.content(
+                                    &self.params.osc2_params.amp,
+                                    &self.params.osc2_params.coarse,
+                                    &self.params.osc2_params.fine,
+                                    &self.params.osc2_params.freq_mult,
+                                    &self.params.osc2_params.freq_div,
+                                    &self.params.osc2_params.attack,
+                                    &self.params.osc2_params.decay,
+                                    &self.params.osc2_params.sustain,
+                                    &self.params.osc2_params.release,
+                                    &self.params.osc2_params.feedback,
+                                    &self.params.osc2_params.velocity_sensitivity,
+                                    &self.params.osc2_params.keyscaling,
+                                ))
+                                .push(self.osc_params_3.content(
+                                    &self.params.osc3_params.amp,
+                                    &self.params.osc3_params.coarse,
+                                    &self.params.osc3_params.fine,
+                                    &self.params.osc3_params.freq_mult,
+                                    &self.params.osc3_params.freq_div,
+                                    &self.params.osc3_params.attack,
+                                    &self.params.osc3_params.decay,
+                                    &self.params.osc3_params.sustain,
+                                    &self.params.osc3_params.release,
+                                    &self.params.osc3_params.feedback,
+                                    &self.params.osc3_params.velocity_sensitivity,
+                                    &self.params.osc3_params.keyscaling,
+                                ))
+                                .push(self.osc_params_4.content(
+                                    &self.params.osc4_params.amp,
+                                    &self.params.osc4_params.coarse,
+                                    &self.params.osc4_params.fine,
+                                    &self.params.osc4_params.freq_mult,
+                                    &self.params.osc4_params.freq_div,
+                                    &self.params.osc4_params.attack,
+                                    &self.params.osc4_params.decay,
+                                    &self.params.osc4_params.sustain,
+                                    &self.params.osc4_params.release,
+                                    &self.params.osc4_params.feedback,
+                                    &self.params.osc4_params.velocity_sensitivity,
+                                    &self.params.osc4_params.keyscaling,
+                                )),
+                        )
+                        .push(
+                            Row::new()
+                                .padding(Padding::from(5))
+                                .spacing(20)
+                                .push(self.osc_params_5.content(
+                                    &self.params.osc5_params.amp,
+                                    &self.params.osc5_params.coarse,
+                                    &self.params.osc5_params.fine,
+                                    &self.params.osc5_params.freq_mult,
+                                    &self.params.osc5_params.freq_div,
+                                    &self.params.osc5_params.attack,
+                                    &self.params.osc5_params.decay,
+                                    &self.params.osc5_params.sustain,
+                                    &self.params.osc5_params.release,
+                                    &self.params.osc5_params.feedback,
+                                    &self.params.osc5_params.velocity_sensitivity,
+                                    &self.params.osc5_params.keyscaling,
+                                ))
+                                .push(self.osc_params_6.content(
+                                    &self.params.osc6_params.amp,
+                                    &self.params.osc6_params.coarse,
+                                    &self.params.osc6_params.fine,
+                                    &self.params.osc6_params.freq_mult,
+                                    &self.params.osc6_params.freq_div,
+                                    &self.params.osc6_params.attack,
+                                    &self.params.osc6_params.decay,
+                                    &self.params.osc6_params.sustain,
+                                    &self.params.osc6_params.release,
+                                    &self.params.osc6_params.feedback,
+                                    &self.params.osc6_params.velocity_sensitivity,
+                                    &self.params.osc6_params.keyscaling,
+                                ))
+                                .push(self.osc_params_7.content(
+                                    &self.params.osc7_params.amp,
+                                    &self.params.osc7_params.coarse,
+                                    &self.params.osc7_params.fine,
+                                    &self.params.osc7_params.freq_mult,
+                                    &self.params.osc7_params.freq_div,
+                                    &self.params.osc7_params.attack,
+                                    &self.params.osc7_params.decay,
+                                    &self.params.osc7_params.sustain,
+                                    &self.params.osc7_params.release,
+                                    &self.params.osc7_params.feedback,
+                                    &self.params.osc7_params.velocity_sensitivity,
+                                    &self.params.osc7_params.keyscaling,
+                                ))
+                                .push(self.osc_params_8.content(
+                                    &self.params.osc8_params.amp,
+                                    &self.params.osc8_params.coarse,
+                                    &self.params.osc8_params.fine,
+                                    &self.params.osc8_params.freq_mult,
+                                    &self.params.osc8_params.freq_div,
+                                    &self.params.osc8_params.attack,
+                                    &self.params.osc8_params.decay,
+                                    &self.params.osc8_params.sustain,
+                                    &self.params.osc8_params.release,
+                                    &self.params.osc8_params.feedback,
+                                    &self.params.osc8_params.velocity_sensitivity,
+                                    &self.params.osc8_params.keyscaling,
+                                )),
+                        ),
+                ),
+            )
             // .push(
             //     nih_widgets::PeakMeter::new(
             //         &mut self.peak_meter_state,
@@ -556,9 +555,9 @@ impl OscillatorWidget {
         keyscaling: &'a FloatParam,
     ) -> Column<Message> {
         let param_font_size = 16;
-        let slider_font_size = 18;
+        let slider_font_size = 16;
         let slider_width = 80;
-        let slider_height = 20;
+        let slider_height = 16;
         Column::new()
             .push(
                 Text::new(self.name)
@@ -704,49 +703,85 @@ struct MatrixWidget {
     _1_4: param_slider::State,
     _1_5: param_slider::State,
     _1_6: param_slider::State,
+    _1_7: param_slider::State,
+    _1_8: param_slider::State,
 
     _2_1: param_slider::State,
     _2_3: param_slider::State,
     _2_4: param_slider::State,
     _2_5: param_slider::State,
     _2_6: param_slider::State,
+    _2_7: param_slider::State,
+    _2_8: param_slider::State,
 
     _3_1: param_slider::State,
     _3_2: param_slider::State,
     _3_4: param_slider::State,
     _3_5: param_slider::State,
     _3_6: param_slider::State,
+    _3_7: param_slider::State,
+    _3_8: param_slider::State,
 
     _4_1: param_slider::State,
     _4_2: param_slider::State,
     _4_3: param_slider::State,
     _4_5: param_slider::State,
     _4_6: param_slider::State,
+    _4_7: param_slider::State,
+    _4_8: param_slider::State,
 
     _5_1: param_slider::State,
     _5_2: param_slider::State,
     _5_3: param_slider::State,
     _5_4: param_slider::State,
     _5_6: param_slider::State,
+    _5_7: param_slider::State,
+    _5_8: param_slider::State,
 
     _6_1: param_slider::State,
     _6_2: param_slider::State,
     _6_3: param_slider::State,
     _6_4: param_slider::State,
     _6_5: param_slider::State,
+    _6_7: param_slider::State,
+    _6_8: param_slider::State,
+
+    _7_1: param_slider::State,
+    _7_2: param_slider::State,
+    _7_3: param_slider::State,
+    _7_4: param_slider::State,
+    _7_5: param_slider::State,
+    _7_6: param_slider::State,
+    _7_8: param_slider::State,
+
+    _8_1: param_slider::State,
+    _8_2: param_slider::State,
+    _8_3: param_slider::State,
+    _8_4: param_slider::State,
+    _8_5: param_slider::State,
+    _8_6: param_slider::State,
+    _8_7: param_slider::State,
 }
 impl MatrixWidget {
     fn ui_matrix<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
         let slider_width = 40;
-        let slider_height = 20;
+        let slider_height = 16;
         let slider_font_size = 14;
         let spacing = 4;
         Column::new()
             .spacing(spacing)
             .push(
-                Text::new("Matrix")
+                Text::new("FM Matrix")
                     .font(assets::NOTO_SANS_BOLD)
                     .size(18)
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .vertical_alignment(alignment::Vertical::Center),
+            )
+            .push(
+                Text::new("From")
+                    .font(assets::NOTO_SANS_REGULAR)
+                    .size(16)
+                    .width((slider_width * 9 + spacing * 9 * 2).into())
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .vertical_alignment(alignment::Vertical::Center),
             )
@@ -754,7 +789,7 @@ impl MatrixWidget {
                 let mut row = Row::new()
                     .spacing(spacing)
                     .push(Space::new(slider_width.into(), slider_height.into()));
-                for i in 1..=6 {
+                for i in 1..=8 {
                     row = row.push(
                         Text::new(i.to_string())
                             .size(14)
@@ -770,7 +805,7 @@ impl MatrixWidget {
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(1.to_string())
+                        Text::new("To 1".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -812,13 +847,27 @@ impl MatrixWidget {
                             .height(slider_height.into())
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._1_7, &params.mod_osc1_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._1_8, &params.mod_osc1_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     ),
             )
             .push(
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(2.to_string())
+                        Text::new("To 2".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -860,13 +909,27 @@ impl MatrixWidget {
                             .height(slider_height.into())
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._2_7, &params.mod_osc2_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._2_8, &params.mod_osc2_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     ),
             )
             .push(
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(3.to_string())
+                        Text::new("To 3".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -908,13 +971,27 @@ impl MatrixWidget {
                             .height(slider_height.into())
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._3_7, &params.mod_osc3_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._3_8, &params.mod_osc3_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     ),
             )
             .push(
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(4.to_string())
+                        Text::new("To 4".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -956,13 +1033,27 @@ impl MatrixWidget {
                             .height(slider_height.into())
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._4_7, &params.mod_osc4_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._4_8, &params.mod_osc4_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     ),
             )
             .push(
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(5.to_string())
+                        Text::new("To 5".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -1004,13 +1095,27 @@ impl MatrixWidget {
                             .height(slider_height.into())
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._5_7, &params.mod_osc5_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._5_8, &params.mod_osc5_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     ),
             )
             .push(
                 Row::new()
                     .spacing(spacing)
                     .push(
-                        Text::new(6.to_string())
+                        Text::new("To 6".to_string())
                             .size(14)
                             .width(slider_width.into())
                             .height(slider_height.into())
@@ -1047,6 +1152,144 @@ impl MatrixWidget {
                     )
                     .push(
                         ParamSlider::new(&mut self._6_5, &params.mod_osc6_by_osc5)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._6_7, &params.mod_osc6_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._6_8, &params.mod_osc6_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    ),
+            )
+            .push(
+                Row::new()
+                    .spacing(spacing)
+                    .push(
+                        Text::new("To 7".to_string())
+                            .size(14)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_1, &params.mod_osc7_by_osc1)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_2, &params.mod_osc7_by_osc2)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_3, &params.mod_osc7_by_osc3)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_4, &params.mod_osc7_by_osc4)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_5, &params.mod_osc7_by_osc5)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._7_6, &params.mod_osc7_by_osc6)
+                        .width(slider_width.into())
+                        .height(slider_height.into())
+                        .text_size(slider_font_size)
+                        .map(Message::ParamUpdate),
+                    )
+                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._7_8, &params.mod_osc7_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    ),
+            )
+            .push(
+                Row::new()
+                    .spacing(spacing)
+                    .push(
+                        Text::new("To 8".to_string())
+                            .size(14)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_1, &params.mod_osc8_by_osc1)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_2, &params.mod_osc8_by_osc2)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_3, &params.mod_osc8_by_osc3)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_4, &params.mod_osc8_by_osc4)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_5, &params.mod_osc8_by_osc5)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_6, &params.mod_osc8_by_osc6)
+                        .width(slider_width.into())
+                        .height(slider_height.into())
+                        .text_size(slider_font_size)
+                        .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self._8_7, &params.mod_osc8_by_osc7)
                             .width(slider_width.into())
                             .height(slider_height.into())
                             .text_size(slider_font_size)
