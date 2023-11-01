@@ -52,10 +52,17 @@ impl VoiceList {
             }
         }
     }
-    pub fn update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
+    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
-                voice.update(osc_params, voice_params);
+                voice.block_update(osc_params, voice_params);
+            }
+        }
+    }
+    pub fn sample_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
+        for slot in self.voices.iter_mut() {
+            if let Some(voice) = slot {
+                voice.sample_update(osc_params, voice_params);
             }
         }
     }
@@ -97,6 +104,7 @@ impl Voice {
             filter: if voice_params.filter_enabled {
                 let mut filter = SvfSimper::new(
                     Voice::calc_filter_cutoff(
+                        midi_id,
                         &voice_params,
                         envelope(
                             voice_params.sample_rate,
@@ -125,13 +133,15 @@ impl Voice {
     pub fn is_done(&mut self, params: &OscParamsBatch) -> bool {
         self.oscillators.is_done(params)
     }
-    pub fn update(&mut self, params: &OscParamsBatch, voice_params: VoiceParams) {
+    pub fn block_update(&mut self, params: &OscParamsBatch, voice_params: VoiceParams) {
         self.oscillators.update_pitch(params);
+    }
+    pub fn sample_update(&mut self, _params: &OscParamsBatch, voice_params: VoiceParams) {
         if !voice_params.filter_enabled {
             self.filter = None
         } else {
             let cutoff =
-                Voice::calc_filter_cutoff(&voice_params, self.calc_filter_envelope(&voice_params));
+                Self::calc_filter_cutoff(self.midi_id, &voice_params, self.calc_filter_envelope(&voice_params));
             let filter = self.filter.get_or_insert(SvfSimper::new(
                 cutoff,
                 voice_params.filter_resonance,
@@ -163,8 +173,9 @@ impl Voice {
             )
         }
     }
-    fn calc_filter_cutoff(voice_params: &VoiceParams, envelope: f32) -> f32 {
-        (voice_params.filter_cutoff
+    fn calc_filter_cutoff(midi_id: u8, voice_params: &VoiceParams, envelope: f32) -> f32 {
+        let keyscaling = 2.0f32.powf((midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0);
+        (voice_params.filter_cutoff * keyscaling
             + voice_params.filter_envelope_amount * 22000.0 * envelope.powi(2))
         .clamp(20.0, 22000.0)
     }
@@ -182,6 +193,7 @@ pub struct VoiceParams {
     pub filter_decay: f32,
     pub filter_sustain: f32,
     pub filter_release: f32,
+    pub filter_keytrack: f32,
 }
 
 #[derive(Debug, Clone, Copy)]

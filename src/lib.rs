@@ -211,8 +211,9 @@ impl Plugin for SynthPlugin {
             filter_decay: self.params.filter_envelope_decay.value(),
             filter_sustain: self.params.filter_envelope_sustain.value(),
             filter_release: self.params.filter_envelope_release.value(),
+            filter_keytrack: self.params.filter_keytrack.value(),
         };
-        self.voices.update(&osc_params, voice_params);
+        self.voices.block_update(&osc_params, voice_params);
         let block_size = buffer.samples();
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
@@ -223,7 +224,7 @@ impl Plugin for SynthPlugin {
                     // println!("Event at {sample_id}: {:?}", event);
                     break;
                 }
-
+                
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
                         self.voices
@@ -235,10 +236,11 @@ impl Plugin for SynthPlugin {
                     }
                     _ => (),
                 }
-
+                
                 next_event = context.next_event();
             }
-
+            
+            self.voices.sample_update(&osc_params, voice_params);
             let output = self.voices.play(&osc_params, pm_matrix);
 
             for sample in channel_samples {
