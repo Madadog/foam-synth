@@ -1,8 +1,8 @@
 use nih_plug::prelude::*;
 use parameters::SynthPluginParams;
-use wide::f32x8;
 use std::sync::Arc;
 use voice::{OscParams, OscParamsBatch, VoiceList, VoiceParams};
+use wide::f32x8;
 
 mod editor;
 mod parameters;
@@ -94,96 +94,21 @@ impl Plugin for SynthPlugin {
             self.params
                 .osc1_params
                 .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
-            OscParams {
-                output_gain: self.params.osc2_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc2_coarse.value(),
-                fine: self.params.osc2_fine.value(),
-                frequency_mult: self.params.osc2_freq_mult.value()
-                    / self.params.osc2_freq_div.value(),
-                initial_phase: 0.0,
-                attack: self.params.osc2_attack.value(),
-                decay: self.params.osc2_decay.value(),
-                sustain: self.params.osc2_sustain.value(),
-                release: self.params.osc2_release.value(),
-                feedback: self.params.osc2_feedback.value().signum()
-                    * self.params.osc2_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc2_velocity_sensitivity.value(),
-                keyscaling: self.params.osc2_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
-            OscParams {
-                output_gain: self.params.osc3_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc3_coarse.value(),
-                fine: self.params.osc3_fine.value(),
-                frequency_mult: self.params.osc3_freq_mult.value()
-                    / self.params.osc3_freq_div.value(),
-                initial_phase: 0.0,
-                attack: self.params.osc3_attack.value(),
-                decay: self.params.osc3_decay.value(),
-                sustain: self.params.osc3_sustain.value(),
-                release: self.params.osc3_release.value(),
-                feedback: self.params.osc3_feedback.value().signum()
-                    * self.params.osc3_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc3_velocity_sensitivity.value(),
-                keyscaling: self.params.osc3_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
-            OscParams {
-                output_gain: self.params.osc4_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc4_coarse.value(),
-                fine: self.params.osc4_fine.value(),
-                frequency_mult: self.params.osc4_freq_mult.value()
-                    / self.params.osc4_freq_div.value(),
-                initial_phase: 0.0,
-                attack: self.params.osc4_attack.value(),
-                decay: self.params.osc4_decay.value(),
-                sustain: self.params.osc4_sustain.value(),
-                release: self.params.osc4_release.value(),
-                feedback: self.params.osc4_feedback.value().signum()
-                    * self.params.osc4_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc4_velocity_sensitivity.value(),
-                keyscaling: self.params.osc4_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
-            OscParams {
-                output_gain: self.params.osc5_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc5_coarse.value(),
-                fine: self.params.osc5_fine.value(),
-                frequency_mult: self.params.osc5_freq_mult.value()
-                    / self.params.osc5_freq_div.value(),
-                initial_phase: 0.0,
-                attack: self.params.osc5_attack.value(),
-                decay: self.params.osc5_decay.value(),
-                sustain: self.params.osc5_sustain.value(),
-                release: self.params.osc5_release.value(),
-                feedback: self.params.osc5_feedback.value().signum()
-                    * self.params.osc5_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc5_velocity_sensitivity.value(),
-                keyscaling: self.params.osc5_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
-            OscParams {
-                output_gain: self.params.osc6_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc6_coarse.value(),
-                fine: self.params.osc6_fine.value(),
-                frequency_mult: self.params.osc6_freq_mult.value()
-                    / self.params.osc6_freq_div.value(),
-                initial_phase: 0.0,
-                attack: self.params.osc6_attack.value(),
-                decay: self.params.osc6_decay.value(),
-                sustain: self.params.osc6_sustain.value(),
-                release: self.params.osc6_release.value(),
-                feedback: self.params.osc6_feedback.value().signum()
-                    * self.params.osc6_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc6_velocity_sensitivity.value(),
-                keyscaling: self.params.osc6_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
+            self.params
+                .osc2_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+            self.params
+                .osc3_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+            self.params
+                .osc4_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+            self.params
+                .osc5_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+            self.params
+                .osc6_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
             self.params
                 .osc7_params
                 .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
