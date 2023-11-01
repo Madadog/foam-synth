@@ -1,7 +1,7 @@
 # Foam
-![Screenshot of UI](gui_v0.png)
+![Screenshot of UI](gui_v1.png)
 
-6 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats.
+8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats.
 
 Open source under GPLv3.
 

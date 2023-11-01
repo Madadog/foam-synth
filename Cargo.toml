@@ -1,6 +1,6 @@
 [package]
-name = "foamx8"
-version = "0.1.1"
+name = "foam"
+version = "0.1.2"
 edition = "2021"
 authors = ["Adam Godwin <evilspamalt@gmail.com>"]
 license = "GPLv3"

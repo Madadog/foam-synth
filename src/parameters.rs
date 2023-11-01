@@ -57,7 +57,7 @@ impl OscillatorParams {
     pub fn new(index: usize, default_amp: f32) -> Self {
         Self {
             amp: FloatParam::new(
-                dbg!(format!("Osc{} Amp", dbg!(index + 1))),
+                format!("Osc{} Amp", index + 1),
                 default_amp,
                 FloatRange::Linear {
                     min: 0.0,

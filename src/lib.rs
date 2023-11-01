@@ -27,7 +27,7 @@ impl Default for SynthPlugin {
 }
 
 impl Plugin for SynthPlugin {
-    const NAME: &'static str = "Foamx8";
+    const NAME: &'static str = "Foam";
     const VENDOR: &'static str = "Madadog";
     const URL: &'static str = env!("CARGO_PKG_HOMEPAGE");
     const EMAIL: &'static str = "evilspamalt@gmail.com";
@@ -251,7 +251,7 @@ impl Plugin for SynthPlugin {
 }
 
 impl ClapPlugin for SynthPlugin {
-    const CLAP_ID: &'static str = "mada.dog.foamx8";
+    const CLAP_ID: &'static str = "mada.dog.foam";
     const CLAP_DESCRIPTION: Option<&'static str> = Some("8-operator FM synth");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
@@ -266,7 +266,7 @@ impl ClapPlugin for SynthPlugin {
 }
 
 impl Vst3Plugin for SynthPlugin {
-    const VST3_CLASS_ID: [u8; 16] = *b"foamx8...madadog";
+    const VST3_CLASS_ID: [u8; 16] = *b"foam.....madadog";
 
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[
         Vst3SubCategory::Instrument,
