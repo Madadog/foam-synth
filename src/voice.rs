@@ -461,12 +461,12 @@ impl OscillatorBatch {
         // }
         // .max(0.0)
         let time = time / sample_rate;
-        let attack = (time / attack) & time.cmp_le(attack);
-        let decay = ((1.0 - ((time - attack) / decay)).powf(2.0) * (1.0 - sustain) + sustain)
-            & time.cmp_le(attack + decay)
+        let attack_level = (time / attack) & time.cmp_lt(attack);
+        let decay_level = ((1.0 - ((time - attack) / decay)).powf(2.0) * (1.0 - sustain) + sustain)
+            & time.cmp_lt(attack + decay)
             & time.cmp_ge(attack);
         let sustain = sustain & time.cmp_ge(attack + decay);
-        (attack + decay + sustain).max(0.0.into())
+        (attack_level + decay_level + sustain).max(0.0.into())
     }
 
     fn release_envelope(
