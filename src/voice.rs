@@ -1,3 +1,5 @@
+use std::array;
+
 // use wide::{f32x8, u32x8, CmpLe};
 use wide::*;
 
@@ -11,7 +13,7 @@ impl VoiceList {
     pub fn new() -> Self {
         Self { voices: [None; 32] }
     }
-    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 5]; 6]) -> f32 {
+    pub fn play(&mut self, params: &OscParamsBatch, pm_matrix: [f32x8; 8]) -> f32 {
         self.voices
             .iter_mut()
             .filter_map(|voice| voice.as_mut())
@@ -21,7 +23,7 @@ impl VoiceList {
     pub fn add_voice(
         &mut self,
         note: u8,
-        osc_params: &[OscParams],
+        osc_params: &OscParamsBatch,
         velocity: f32,
         voice_params: VoiceParams,
     ) {
@@ -32,7 +34,7 @@ impl VoiceList {
                 Some(Voice::new(note, osc_params, velocity, voice_params));
         }
     }
-    pub fn release_voice(&mut self, note: u8, params: &[OscParams]) {
+    pub fn release_voice(&mut self, note: u8, params: &OscParamsBatch) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 if voice.midi_id == note {
@@ -41,7 +43,7 @@ impl VoiceList {
             }
         }
     }
-    pub fn remove_voices(&mut self, params: &[OscParams]) {
+    pub fn remove_voices(&mut self, params: &OscParamsBatch) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 if voice.is_done(params) {
@@ -50,7 +52,7 @@ impl VoiceList {
             }
         }
     }
-    pub fn update(&mut self, osc_params: &[OscParams], voice_params: VoiceParams) {
+    pub fn update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 voice.update(osc_params, voice_params);
@@ -61,7 +63,7 @@ impl VoiceList {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Voice {
-    oscillators: [Oscillator; 6],
+    oscillators: OscillatorBatch,
     midi_id: u8,
     filter: Option<SvfSimper>,
     time: u32,
@@ -69,95 +71,14 @@ pub struct Voice {
     release_level: f32,
 }
 impl Voice {
-    pub fn play(&mut self, params: &[OscParams], pm_matrix: [[f32; 5]; 6]) -> f32 {
+    pub fn play(&mut self, params: &OscParamsBatch, pm_matrix: [f32x8; 8]) -> f32 {
         self.time += 1;
-        let matrix = [
-            pm_matrix[0][0].mul_add(
-                self.oscillators[1].previous(),
-                pm_matrix[0][1].mul_add(
-                    self.oscillators[2].previous(),
-                    pm_matrix[0][2].mul_add(
-                        self.oscillators[3].previous(),
-                        pm_matrix[0][3].mul_add(
-                            self.oscillators[4].previous(),
-                            pm_matrix[0][4] * self.oscillators[5].previous(),
-                        ),
-                    ),
-                ),
-            ),
-            pm_matrix[1][0].mul_add(
-                self.oscillators[0].previous(),
-                pm_matrix[1][1].mul_add(
-                    self.oscillators[2].previous(),
-                    pm_matrix[1][2].mul_add(
-                        self.oscillators[3].previous(),
-                        pm_matrix[1][3].mul_add(
-                            self.oscillators[4].previous(),
-                            pm_matrix[1][4] * self.oscillators[5].previous(),
-                        ),
-                    ),
-                ),
-            ),
-            pm_matrix[2][0].mul_add(
-                self.oscillators[0].previous(),
-                pm_matrix[2][1].mul_add(
-                    self.oscillators[1].previous(),
-                    pm_matrix[2][2].mul_add(
-                        self.oscillators[3].previous(),
-                        pm_matrix[2][3].mul_add(
-                            self.oscillators[4].previous(),
-                            pm_matrix[2][4] * self.oscillators[5].previous(),
-                        ),
-                    ),
-                ),
-            ),
-            pm_matrix[3][0].mul_add(
-                self.oscillators[0].previous(),
-                pm_matrix[3][1].mul_add(
-                    self.oscillators[1].previous(),
-                    pm_matrix[3][2].mul_add(
-                        self.oscillators[2].previous(),
-                        pm_matrix[3][3].mul_add(
-                            self.oscillators[4].previous(),
-                            pm_matrix[3][4] * self.oscillators[5].previous(),
-                        ),
-                    ),
-                ),
-            ),
-            pm_matrix[4][0].mul_add(
-                self.oscillators[0].previous(),
-                pm_matrix[4][1].mul_add(
-                    self.oscillators[1].previous(),
-                    pm_matrix[4][2].mul_add(
-                        self.oscillators[2].previous(),
-                        pm_matrix[4][3].mul_add(
-                            self.oscillators[3].previous(),
-                            pm_matrix[4][4] * self.oscillators[5].previous(),
-                        ),
-                    ),
-                ),
-            ),
-            pm_matrix[5][0].mul_add(
-                self.oscillators[0].previous(),
-                pm_matrix[5][1].mul_add(
-                    self.oscillators[1].previous(),
-                    pm_matrix[5][2].mul_add(
-                        self.oscillators[2].previous(),
-                        pm_matrix[5][3].mul_add(
-                            self.oscillators[3].previous(),
-                            pm_matrix[5][4] * self.oscillators[4].previous(),
-                        ),
-                    ),
-                ),
-            ),
-        ];
+        let matrix: [f32; 8] =
+            array::from_fn(|i| (pm_matrix[i] * self.oscillators.previous()).reduce_add());
         let out = self
             .oscillators
-            .iter_mut()
-            .zip(params.iter())
-            .zip(matrix)
-            .map(|((v, params), pm)| v.step_with_envelope(params, pm))
-            .sum();
+            .step_with_envelope(params, f32x8::from(matrix))
+            .reduce_add();
         if let Some(filter) = self.filter.as_mut() {
             filter.process(out)
         } else {
@@ -166,19 +87,12 @@ impl Voice {
     }
     pub fn new(
         midi_id: u8,
-        osc_params: &[OscParams],
+        osc_params: &OscParamsBatch,
         velocity: f32,
         voice_params: VoiceParams,
     ) -> Self {
         Self {
-            oscillators: [
-                Oscillator::new(midi_id, &osc_params[0], velocity),
-                Oscillator::new(midi_id, &osc_params[1], velocity),
-                Oscillator::new(midi_id, &osc_params[2], velocity),
-                Oscillator::new(midi_id, &osc_params[3], velocity),
-                Oscillator::new(midi_id, &osc_params[4], velocity),
-                Oscillator::new(midi_id, &osc_params[5], velocity),
-            ],
+            oscillators: OscillatorBatch::new(midi_id, osc_params, velocity),
             midi_id,
             filter: if voice_params.filter_enabled {
                 let mut filter = SvfSimper::new(
@@ -205,22 +119,14 @@ impl Voice {
             release_level: 0.0,
         }
     }
-    pub fn release(&mut self, params: &[OscParams]) {
-        for (osc, params) in self.oscillators.iter_mut().zip(params.iter()) {
-            osc.release(params);
-        }
+    pub fn release(&mut self, params: &OscParamsBatch) {
+        self.oscillators.release(params);
     }
-    pub fn is_done(&mut self, params: &[OscParams]) -> bool {
-        self.oscillators
-            .iter()
-            .zip(params.iter())
-            .all(|(osc, params)| osc.is_done(params))
+    pub fn is_done(&mut self, params: &OscParamsBatch) -> bool {
+        self.oscillators.is_done(params)
     }
-    pub fn update(&mut self, osc_params: &[OscParams], voice_params: VoiceParams) {
-        self.oscillators
-            .iter_mut()
-            .zip(osc_params.iter())
-            .for_each(|(osc, params)| osc.update_pitch(params));
+    pub fn update(&mut self, params: &OscParamsBatch, voice_params: VoiceParams) {
+        self.oscillators.update_pitch(params);
         if !voice_params.filter_enabled {
             self.filter = None
         } else {
@@ -285,6 +191,7 @@ pub struct OscParams {
     pub coarse: f32,
     pub fine: f32,
     pub frequency_mult: f32,
+    pub initial_phase: f32,
     pub attack: f32,
     pub decay: f32,
     pub sustain: f32,
@@ -449,6 +356,42 @@ pub struct OscParamsBatch {
     pub keyscaling: f32x8,
     pub octave_stretch: f32x8,
 }
+macro_rules! aos_to_soa {
+    // The `tt` (token tree) designator is used for
+    // operators and tokens.
+    ($a:expr, $field:ident) => {
+        [
+            $a[0].$field,
+            $a[1].$field,
+            $a[2].$field,
+            $a[3].$field,
+            $a[4].$field,
+            $a[5].$field,
+            $a[6].$field,
+            $a[7].$field,
+            ]
+        };
+}
+impl From<[OscParams; 8]> for OscParamsBatch {
+    fn from(value: [OscParams; 8]) -> Self {
+        Self {
+            output_gain: f32x8::from(aos_to_soa!(value, output_gain)),
+            sample_rate: f32x8::from(aos_to_soa!(value, sample_rate)),
+            coarse: f32x8::from(aos_to_soa!(value, coarse)),
+            fine: f32x8::from(aos_to_soa!(value, fine)),
+            frequency_mult: f32x8::from(aos_to_soa!(value, frequency_mult)),
+            initial_phase: f32x8::from(aos_to_soa!(value, initial_phase)),
+            attack: f32x8::from(aos_to_soa!(value, attack)),
+            decay: f32x8::from(aos_to_soa!(value, decay)),
+            sustain: f32x8::from(aos_to_soa!(value, sustain)),
+            release: f32x8::from(aos_to_soa!(value, release)),
+            feedback: f32x8::from(aos_to_soa!(value, feedback)),
+            velocity_sensitivity: f32x8::from(aos_to_soa!(value, velocity_sensitivity)),
+            keyscaling: f32x8::from(aos_to_soa!(value, keyscaling)),
+            octave_stretch: f32x8::from(aos_to_soa!(value, octave_stretch)),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct OscillatorBatch {
@@ -583,11 +526,13 @@ impl OscillatorBatch {
             None
         }
     }
-    fn is_done(&self, params: &OscParamsBatch) -> f32x8 {
+    fn is_done(&self, params: &OscParamsBatch) -> bool {
         if let Some(released_time) = self.time_since_release() {
-            (released_time / params.sample_rate).cmp_ge(params.release)
+            (released_time / params.sample_rate)
+                .cmp_ge(params.release)
+                .all()
         } else {
-            bytemuck::cast(i32x8::splat(-1i32))
+            false
         }
     }
     fn calculate_delta(frequency: f32x8, sample_rate: f32x8) -> f32x8 {

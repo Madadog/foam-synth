@@ -168,18 +168,18 @@ impl IcedEditor for SynthPluginEditor {
                                     .padding(Padding::from(5))
                                     .spacing(20)
                                     .push(self.osc_params_1.content(
-                                        &self.params.osc1_amp,
-                                        &self.params.osc1_coarse,
-                                        &self.params.osc1_fine,
-                                        &self.params.osc1_freq_mult,
-                                        &self.params.osc1_freq_div,
-                                        &self.params.osc1_attack,
-                                        &self.params.osc1_decay,
-                                        &self.params.osc1_sustain,
-                                        &self.params.osc1_release,
-                                        &self.params.osc1_feedback,
-                                        &self.params.osc1_velocity_sensitivity,
-                                        &self.params.osc1_keyscaling,
+                                        &self.params.osc1_params.amp,
+                                        &self.params.osc1_params.coarse,
+                                        &self.params.osc1_params.fine,
+                                        &self.params.osc1_params.freq_mult,
+                                        &self.params.osc1_params.freq_div,
+                                        &self.params.osc1_params.attack,
+                                        &self.params.osc1_params.decay,
+                                        &self.params.osc1_params.sustain,
+                                        &self.params.osc1_params.release,
+                                        &self.params.osc1_params.feedback,
+                                        &self.params.osc1_params.velocity_sensitivity,
+                                        &self.params.osc1_params.keyscaling,
                                     ))
                                     .push(self.osc_params_2.content(
                                         &self.params.osc2_amp,

@@ -1,12 +1,13 @@
 use nih_plug::prelude::*;
 use parameters::SynthPluginParams;
+use wide::f32x8;
 use std::sync::Arc;
-use voice::{OscParams, VoiceList, VoiceParams};
+use voice::{OscParams, OscParamsBatch, VoiceList, VoiceParams};
 
-mod parameters;
-mod voice;
-mod svf_simper;
 mod editor;
+mod parameters;
+mod svf_simper;
+mod voice;
 
 struct SynthPlugin {
     params: Arc<SynthPluginParams>,
@@ -26,7 +27,7 @@ impl Default for SynthPlugin {
 }
 
 impl Plugin for SynthPlugin {
-    const NAME: &'static str = "Foam";
+    const NAME: &'static str = "Foamx8";
     const VENDOR: &'static str = "Madadog";
     const URL: &'static str = env!("CARGO_PKG_HOMEPAGE");
     const EMAIL: &'static str = "evilspamalt@gmail.com";
@@ -64,10 +65,7 @@ impl Plugin for SynthPlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        editor::create(
-            self.params.clone(),
-            self.params.editor_state.clone(),
-        )
+        editor::create(self.params.clone(), self.params.editor_state.clone())
     }
 
     fn initialize(
@@ -92,24 +90,10 @@ impl Plugin for SynthPlugin {
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         let mut next_event = context.next_event();
-        let params = [
-            OscParams {
-                output_gain: self.params.osc1_amp.value() / 100.0,
-                sample_rate: self.sample_rate,
-                coarse: self.params.osc1_coarse.value(),
-                fine: self.params.osc1_fine.value(),
-                frequency_mult: self.params.osc1_freq_mult.value()
-                    / self.params.osc1_freq_div.value(),
-                attack: self.params.osc1_attack.value(),
-                decay: self.params.osc1_decay.value(),
-                sustain: self.params.osc1_sustain.value(),
-                release: self.params.osc1_release.value(),
-                feedback: self.params.osc1_feedback.value().signum()
-                    * self.params.osc1_feedback.value().powi(2),
-                velocity_sensitivity: self.params.osc1_velocity_sensitivity.value(),
-                keyscaling: self.params.osc1_keyscaling.value(),
-                octave_stretch: self.params.octave_stretch.value(),
-            },
+        let osc_params = [
+            self.params
+                .osc1_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
             OscParams {
                 output_gain: self.params.osc2_amp.value() / 100.0,
                 sample_rate: self.sample_rate,
@@ -117,6 +101,7 @@ impl Plugin for SynthPlugin {
                 fine: self.params.osc2_fine.value(),
                 frequency_mult: self.params.osc2_freq_mult.value()
                     / self.params.osc2_freq_div.value(),
+                initial_phase: 0.0,
                 attack: self.params.osc2_attack.value(),
                 decay: self.params.osc2_decay.value(),
                 sustain: self.params.osc2_sustain.value(),
@@ -134,6 +119,7 @@ impl Plugin for SynthPlugin {
                 fine: self.params.osc3_fine.value(),
                 frequency_mult: self.params.osc3_freq_mult.value()
                     / self.params.osc3_freq_div.value(),
+                initial_phase: 0.0,
                 attack: self.params.osc3_attack.value(),
                 decay: self.params.osc3_decay.value(),
                 sustain: self.params.osc3_sustain.value(),
@@ -151,6 +137,7 @@ impl Plugin for SynthPlugin {
                 fine: self.params.osc4_fine.value(),
                 frequency_mult: self.params.osc4_freq_mult.value()
                     / self.params.osc4_freq_div.value(),
+                initial_phase: 0.0,
                 attack: self.params.osc4_attack.value(),
                 decay: self.params.osc4_decay.value(),
                 sustain: self.params.osc4_sustain.value(),
@@ -168,6 +155,7 @@ impl Plugin for SynthPlugin {
                 fine: self.params.osc5_fine.value(),
                 frequency_mult: self.params.osc5_freq_mult.value()
                     / self.params.osc5_freq_div.value(),
+                initial_phase: 0.0,
                 attack: self.params.osc5_attack.value(),
                 decay: self.params.osc5_decay.value(),
                 sustain: self.params.osc5_sustain.value(),
@@ -185,6 +173,7 @@ impl Plugin for SynthPlugin {
                 fine: self.params.osc6_fine.value(),
                 frequency_mult: self.params.osc6_freq_mult.value()
                     / self.params.osc6_freq_div.value(),
+                initial_phase: 0.0,
                 attack: self.params.osc6_attack.value(),
                 decay: self.params.osc6_decay.value(),
                 sustain: self.params.osc6_sustain.value(),
@@ -195,52 +184,79 @@ impl Plugin for SynthPlugin {
                 keyscaling: self.params.osc6_keyscaling.value(),
                 octave_stretch: self.params.octave_stretch.value(),
             },
+            self.params
+                .osc7_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+            self.params
+                .osc8_params
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
         ];
+        let osc_params = OscParamsBatch::from(osc_params);
         let mut pm_matrix = [
-            [
+            f32x8::from([
                 self.params.mod_osc1_by_osc2.value(),
                 self.params.mod_osc1_by_osc3.value(),
                 self.params.mod_osc1_by_osc4.value(),
                 self.params.mod_osc1_by_osc5.value(),
                 self.params.mod_osc1_by_osc6.value(),
-            ],
-            [
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::from([
                 self.params.mod_osc2_by_osc1.value(),
                 self.params.mod_osc2_by_osc3.value(),
                 self.params.mod_osc2_by_osc4.value(),
                 self.params.mod_osc2_by_osc5.value(),
                 self.params.mod_osc2_by_osc6.value(),
-            ],
-            [
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::from([
                 self.params.mod_osc3_by_osc1.value(),
                 self.params.mod_osc3_by_osc2.value(),
                 self.params.mod_osc3_by_osc4.value(),
                 self.params.mod_osc3_by_osc5.value(),
                 self.params.mod_osc3_by_osc6.value(),
-            ],
-            [
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::from([
                 self.params.mod_osc4_by_osc1.value(),
                 self.params.mod_osc4_by_osc2.value(),
                 self.params.mod_osc4_by_osc3.value(),
                 self.params.mod_osc4_by_osc5.value(),
                 self.params.mod_osc4_by_osc6.value(),
-            ],
-            [
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::from([
                 self.params.mod_osc5_by_osc1.value(),
                 self.params.mod_osc5_by_osc2.value(),
                 self.params.mod_osc5_by_osc3.value(),
                 self.params.mod_osc5_by_osc4.value(),
                 self.params.mod_osc5_by_osc6.value(),
-            ],
-            [
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::from([
                 self.params.mod_osc6_by_osc1.value(),
                 self.params.mod_osc6_by_osc2.value(),
                 self.params.mod_osc6_by_osc3.value(),
                 self.params.mod_osc6_by_osc4.value(),
                 self.params.mod_osc6_by_osc5.value(),
-            ]
+                0.0,
+                0.0,
+                0.0,
+            ]),
+            f32x8::splat(0.0),
+            f32x8::splat(0.0),
         ];
-        pm_matrix.iter_mut().flatten().for_each(|x| *x *= 6.0);
+        pm_matrix.iter_mut().for_each(|x| *x = *x * 6.0);
         let voice_params = VoiceParams {
             sample_rate: self.sample_rate,
             filter_enabled: self.params.filter_enabled.value(),
@@ -253,7 +269,7 @@ impl Plugin for SynthPlugin {
             filter_sustain: self.params.filter_envelope_sustain.value(),
             filter_release: self.params.filter_envelope_release.value(),
         };
-        self.voices.update(&params, voice_params);
+        self.voices.update(&osc_params, voice_params);
         let block_size = buffer.samples();
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
@@ -267,11 +283,12 @@ impl Plugin for SynthPlugin {
 
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
-                        self.voices.add_voice(note, &params, velocity, voice_params);
+                        self.voices
+                            .add_voice(note, &osc_params, velocity, voice_params);
                     }
                     NoteEvent::NoteOff { note, .. } => {
                         // println!("Note off at {}/{sample_id}: {}", event.timing(), note);
-                        self.voices.release_voice(note, &params);
+                        self.voices.release_voice(note, &osc_params);
                     }
                     _ => (),
                 }
@@ -279,20 +296,20 @@ impl Plugin for SynthPlugin {
                 next_event = context.next_event();
             }
 
-            let output = self.voices.play(&params, pm_matrix);
+            let output = self.voices.play(&osc_params, pm_matrix);
 
             for sample in channel_samples {
                 *sample = output * gain;
             }
         }
-        self.voices.remove_voices(&params);
+        self.voices.remove_voices(&osc_params);
         ProcessStatus::KeepAlive
     }
 }
 
 impl ClapPlugin for SynthPlugin {
-    const CLAP_ID: &'static str = "mada.dog.foam";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("6-operator FM synth");
+    const CLAP_ID: &'static str = "mada.dog.foamx8";
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("8-operator FM synth");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
 
@@ -306,7 +323,7 @@ impl ClapPlugin for SynthPlugin {
 }
 
 impl Vst3Plugin for SynthPlugin {
-    const VST3_CLASS_ID: [u8; 16] = *b"foam.....madadog";
+    const VST3_CLASS_ID: [u8; 16] = *b"foamx8...madadog";
 
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[
         Vst3SubCategory::Instrument,

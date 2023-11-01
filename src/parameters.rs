@@ -27,6 +27,131 @@ const FM_RANGE: FloatRange = FloatRange::Skewed {
 };
 
 #[derive(Params)]
+pub struct OscillatorParams {
+    #[id = "amp"]
+    pub amp: FloatParam,
+    #[id = "coarse"]
+    pub coarse: FloatParam,
+    #[id = "fine"]
+    pub fine: FloatParam,
+    #[id = "freq_mult"]
+    pub freq_mult: FloatParam,
+    #[id = "freq_div"]
+    pub freq_div: FloatParam,
+    #[id = "attack"]
+    pub attack: FloatParam,
+    #[id = "decay"]
+    pub decay: FloatParam,
+    #[id = "sustain"]
+    pub sustain: FloatParam,
+    #[id = "release"]
+    pub release: FloatParam,
+    #[id = "feedback"]
+    pub feedback: FloatParam,
+    #[id = "velocity_sensitivity"]
+    pub velocity_sensitivity: FloatParam,
+    #[id = "keyscaling"]
+    pub keyscaling: FloatParam,
+}
+impl OscillatorParams {
+    pub fn new(index: usize, default_amp: f32) -> Self {
+        Self {
+            amp: FloatParam::new(
+                dbg!(format!("Osc{} Amp", dbg!(index + 1))),
+                default_amp,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            coarse: FloatParam::new(
+                format!("Osc{} Coarse", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
+            fine: FloatParam::new(
+                format!("Osc{} Fine", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -100.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            freq_mult: FloatParam::new(
+                format!("Osc{} Freq Mult", index + 1),
+                1.0,
+                FREQ_MULT_DIV_RANGE,
+            )
+            .with_step_size(1.0),
+            freq_div: FloatParam::new(
+                format!("Osc{} Freq Div", index + 1),
+                1.0,
+                FREQ_MULT_DIV_RANGE,
+            )
+            .with_step_size(1.0),
+            attack: FloatParam::new(format!("Osc{} Attack", index + 1), 0.0, ATTACK_DECAY_RANGE)
+                .with_unit("s"),
+            decay: FloatParam::new(format!("Osc{} Decay", index + 1), 0.5, ATTACK_DECAY_RANGE)
+                .with_unit("s"),
+            sustain: FloatParam::new(
+                format!("Osc{} Sustain", index + 1),
+                1.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            release: FloatParam::new(format!("Osc{} Release", index + 1), 0.05, RELEASE_RANGE)
+                .with_unit("s"),
+            feedback: FloatParam::new(
+                format!("Osc{} Feedback", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            velocity_sensitivity: FloatParam::new(
+                format!("Osc{} Velocity Sens.", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+            keyscaling: FloatParam::new(
+                format!("Osc{} Keyscaling", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -1.0,
+                    max: 1.0,
+                },
+            ),
+        }
+    }
+    pub fn to_osc_params(&self, sample_rate: f32, octave_stretch: f32) -> crate::voice::OscParams {
+        crate::voice::OscParams {
+            output_gain: self.amp.value() / 100.0,
+            sample_rate: sample_rate,
+            coarse: self.coarse.value(),
+            fine: self.fine.value(),
+            frequency_mult: self.freq_mult.value() / self.freq_div.value(),
+            initial_phase: 0.0,
+            attack: self.attack.value(),
+            decay: self.decay.value(),
+            sustain: self.sustain.value(),
+            release: self.release.value(),
+            feedback: self.feedback.value().signum() * self.feedback.value().powi(2),
+            velocity_sensitivity: self.velocity_sensitivity.value(),
+            keyscaling: self.keyscaling.value(),
+            octave_stretch: octave_stretch,
+        }
+    }
+}
+
+#[derive(Params)]
 pub struct SynthPluginParams {
     #[persist = "editor-state"]
     pub(crate) editor_state: Arc<IcedState>,
@@ -102,30 +227,8 @@ pub struct SynthPluginParams {
     #[id = "mod_osc6_by_osc5"]
     pub mod_osc6_by_osc5: FloatParam,
 
-    #[id = "osc1_amp"]
-    pub osc1_amp: FloatParam,
-    #[id = "osc1_coarse"]
-    pub osc1_coarse: FloatParam,
-    #[id = "osc1_fine"]
-    pub osc1_fine: FloatParam,
-    #[id = "osc1_freq_mult"]
-    pub osc1_freq_mult: FloatParam,
-    #[id = "osc1_freq_div"]
-    pub osc1_freq_div: FloatParam,
-    #[id = "osc1_attack"]
-    pub osc1_attack: FloatParam,
-    #[id = "osc1_decay"]
-    pub osc1_decay: FloatParam,
-    #[id = "osc1_sustain"]
-    pub osc1_sustain: FloatParam,
-    #[id = "osc1_release"]
-    pub osc1_release: FloatParam,
-    #[id = "osc1_feedback"]
-    pub osc1_feedback: FloatParam,
-    #[id = "osc1_velocity_sensitivity"]
-    pub osc1_velocity_sensitivity: FloatParam,
-    #[id = "osc1_keyscaling"]
-    pub osc1_keyscaling: FloatParam,
+    #[nested(group = "osc1")]
+    pub osc1_params: OscillatorParams,
 
     #[id = "osc2_amp"]
     pub osc2_amp: FloatParam,
@@ -252,6 +355,12 @@ pub struct SynthPluginParams {
     #[id = "osc6_keyscaling"]
     pub osc6_keyscaling: FloatParam,
 
+    #[nested(group = "osc7")]
+    pub osc7_params: OscillatorParams,
+
+    #[nested(group = "osc8")]
+    pub osc8_params: OscillatorParams,
+
     #[id = "filter_enabled"]
     pub filter_enabled: BoolParam,
     #[id = "filter_type"]
@@ -310,224 +419,43 @@ impl Default for SynthPluginParams {
                 },
             ),
 
-            mod_osc1_by_osc2: FloatParam::new(
-                "Mod Osc1 by Osc2",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc1_by_osc3: FloatParam::new(
-                "Mod Osc1 by Osc3",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc1_by_osc4: FloatParam::new(
-                "Mod Osc1 by Osc4",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc1_by_osc5: FloatParam::new(
-                "Mod Osc1 by Osc5",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc1_by_osc6: FloatParam::new(
-                "Mod Osc1 by Osc6",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc1_by_osc2: FloatParam::new("Mod Osc1 by Osc2", 0.0, FM_RANGE),
+            mod_osc1_by_osc3: FloatParam::new("Mod Osc1 by Osc3", 0.0, FM_RANGE),
+            mod_osc1_by_osc4: FloatParam::new("Mod Osc1 by Osc4", 0.0, FM_RANGE),
+            mod_osc1_by_osc5: FloatParam::new("Mod Osc1 by Osc5", 0.0, FM_RANGE),
+            mod_osc1_by_osc6: FloatParam::new("Mod Osc1 by Osc6", 0.0, FM_RANGE),
 
-            mod_osc2_by_osc1: FloatParam::new(
-                "Mod Osc2 by Osc1",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc2_by_osc3: FloatParam::new(
-                "Mod Osc2 by Osc3",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc2_by_osc4: FloatParam::new(
-                "Mod Osc2 by Osc4",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc2_by_osc5: FloatParam::new(
-                "Mod Osc2 by Osc5",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc2_by_osc6: FloatParam::new(
-                "Mod Osc2 by Osc6",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc2_by_osc1: FloatParam::new("Mod Osc2 by Osc1", 0.0, FM_RANGE),
+            mod_osc2_by_osc3: FloatParam::new("Mod Osc2 by Osc3", 0.0, FM_RANGE),
+            mod_osc2_by_osc4: FloatParam::new("Mod Osc2 by Osc4", 0.0, FM_RANGE),
+            mod_osc2_by_osc5: FloatParam::new("Mod Osc2 by Osc5", 0.0, FM_RANGE),
+            mod_osc2_by_osc6: FloatParam::new("Mod Osc2 by Osc6", 0.0, FM_RANGE),
 
-            mod_osc3_by_osc1: FloatParam::new(
-                "Mod Osc3 by Osc1",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc3_by_osc2: FloatParam::new(
-                "Mod Osc3 by Osc2",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc3_by_osc4: FloatParam::new(
-                "Mod Osc3 by Osc4",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc3_by_osc5: FloatParam::new(
-                "Mod Osc3 by Osc5",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc3_by_osc6: FloatParam::new(
-                "Mod Osc3 by Osc6",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc3_by_osc1: FloatParam::new("Mod Osc3 by Osc1", 0.0, FM_RANGE),
+            mod_osc3_by_osc2: FloatParam::new("Mod Osc3 by Osc2", 0.0, FM_RANGE),
+            mod_osc3_by_osc4: FloatParam::new("Mod Osc3 by Osc4", 0.0, FM_RANGE),
+            mod_osc3_by_osc5: FloatParam::new("Mod Osc3 by Osc5", 0.0, FM_RANGE),
+            mod_osc3_by_osc6: FloatParam::new("Mod Osc3 by Osc6", 0.0, FM_RANGE),
 
-            mod_osc4_by_osc1: FloatParam::new(
-                "Mod Osc4 by Osc1",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc4_by_osc2: FloatParam::new(
-                "Mod Osc4 by Osc2",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc4_by_osc3: FloatParam::new(
-                "Mod Osc4 by Osc3",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc4_by_osc5: FloatParam::new(
-                "Mod Osc4 by Osc5",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc4_by_osc6: FloatParam::new(
-                "Mod Osc4 by Osc6",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc4_by_osc1: FloatParam::new("Mod Osc4 by Osc1", 0.0, FM_RANGE),
+            mod_osc4_by_osc2: FloatParam::new("Mod Osc4 by Osc2", 0.0, FM_RANGE),
+            mod_osc4_by_osc3: FloatParam::new("Mod Osc4 by Osc3", 0.0, FM_RANGE),
+            mod_osc4_by_osc5: FloatParam::new("Mod Osc4 by Osc5", 0.0, FM_RANGE),
+            mod_osc4_by_osc6: FloatParam::new("Mod Osc4 by Osc6", 0.0, FM_RANGE),
 
-            mod_osc5_by_osc1: FloatParam::new(
-                "Mod Osc5 by Osc1",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc5_by_osc2: FloatParam::new(
-                "Mod Osc5 by Osc2",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc5_by_osc3: FloatParam::new(
-                "Mod Osc5 by Osc3",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc5_by_osc4: FloatParam::new(
-                "Mod Osc5 by Osc4",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc5_by_osc6: FloatParam::new(
-                "Mod Osc5 by Osc6",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc5_by_osc1: FloatParam::new("Mod Osc5 by Osc1", 0.0, FM_RANGE),
+            mod_osc5_by_osc2: FloatParam::new("Mod Osc5 by Osc2", 0.0, FM_RANGE),
+            mod_osc5_by_osc3: FloatParam::new("Mod Osc5 by Osc3", 0.0, FM_RANGE),
+            mod_osc5_by_osc4: FloatParam::new("Mod Osc5 by Osc4", 0.0, FM_RANGE),
+            mod_osc5_by_osc6: FloatParam::new("Mod Osc5 by Osc6", 0.0, FM_RANGE),
 
-            mod_osc6_by_osc1: FloatParam::new(
-                "Mod Osc6 by Osc1",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc6_by_osc2: FloatParam::new(
-                "Mod Osc6 by Osc2",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc6_by_osc3: FloatParam::new(
-                "Mod Osc6 by Osc3",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc6_by_osc4: FloatParam::new(
-                "Mod Osc6 by Osc4",
-                0.0,
-                FM_RANGE,
-            ),
-            mod_osc6_by_osc5: FloatParam::new(
-                "Mod Osc6 by Osc5",
-                0.0,
-                FM_RANGE,
-            ),
+            mod_osc6_by_osc1: FloatParam::new("Mod Osc6 by Osc1", 0.0, FM_RANGE),
+            mod_osc6_by_osc2: FloatParam::new("Mod Osc6 by Osc2", 0.0, FM_RANGE),
+            mod_osc6_by_osc3: FloatParam::new("Mod Osc6 by Osc3", 0.0, FM_RANGE),
+            mod_osc6_by_osc4: FloatParam::new("Mod Osc6 by Osc4", 0.0, FM_RANGE),
+            mod_osc6_by_osc5: FloatParam::new("Mod Osc6 by Osc5", 0.0, FM_RANGE),
 
-            osc1_amp: FloatParam::new(
-                "Osc1 Amp",
-                100.0,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 100.0,
-                },
-            ),
-            osc1_coarse: FloatParam::new(
-                "Osc1 Coarse",
-                0.0,
-                FloatRange::Linear {
-                    min: -48.0,
-                    max: 48.0,
-                },
-            )
-            .with_step_size(1.0),
-            osc1_fine: FloatParam::new(
-                "Osc1 Fine",
-                0.0,
-                FloatRange::Linear {
-                    min: -100.0,
-                    max: 100.0,
-                },
-            )
-            .with_unit("%"),
-            osc1_freq_mult: FloatParam::new("Osc1 Freq Mult", 1.0, FREQ_MULT_DIV_RANGE)
-                .with_step_size(1.0),
-            osc1_freq_div: FloatParam::new("Osc1 Freq Div", 1.0, FREQ_MULT_DIV_RANGE)
-                .with_step_size(1.0),
-            osc1_attack: FloatParam::new("Osc1 Attack", 0.0, ATTACK_DECAY_RANGE).with_unit("s"),
-            osc1_decay: FloatParam::new("Osc1 Decay", 0.5, ATTACK_DECAY_RANGE).with_unit("s"),
-            osc1_sustain: FloatParam::new(
-                "Osc1 Sustain",
-                1.0,
-                FloatRange::Linear { min: 0.0, max: 1.0 },
-            ),
-            osc1_release: FloatParam::new("Osc1 Release", 0.05, RELEASE_RANGE).with_unit("s"),
-            osc1_feedback: FloatParam::new(
-                "Osc1 Feedback",
-                0.0,
-                FloatRange::Linear {
-                    min: -1.0,
-                    max: 1.0,
-                },
-            ),
-            osc1_velocity_sensitivity: FloatParam::new(
-                "Osc1 Velocity Sens.",
-                0.0,
-                FloatRange::Linear {
-                    min: -1.0,
-                    max: 1.0,
-                },
-            ),
-            osc1_keyscaling: FloatParam::new(
-                "Osc1 Keyscaling",
-                0.0,
-                FloatRange::Linear {
-                    min: -1.0,
-                    max: 1.0,
-                },
-            ),
+            osc1_params: OscillatorParams::new(0, 100.0),
 
             osc2_amp: FloatParam::new(
                 "Osc2 Amp",
@@ -843,6 +771,8 @@ impl Default for SynthPluginParams {
                     max: 1.0,
                 },
             ),
+            osc7_params: OscillatorParams::new(6, 0.0),
+            osc8_params: OscillatorParams::new(7, 0.0),
 
             filter_enabled: BoolParam::new("Filter Enabled", true),
             filter_type: EnumParam::new("Filter Type", FilterType::Lowpass),
