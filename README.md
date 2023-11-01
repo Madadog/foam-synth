@@ -1,7 +1,7 @@
 # Foam
 ![Screenshot of UI](gui_v1.png)
 
-8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats.
+8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats. Oscillator generation and modulation is SIMD accelerated (via [wide](https://github.com/lokathor/wide)).
 
 Open source under GPLv3.
 
@@ -11,7 +11,7 @@ Downloads [available at the releases page](https://github.com/Madadog/foam-synth
 
 ## What
 
-There are 6 feedback-capable sine oscillators, each with independent amplitude envelopes. Each of the 6 oscillators has the following controls:
+There are 8 feedback-capable sine oscillators, each with independent amplitude envelopes. Each of the 8 oscillators has the following controls:
 * **Amp:** Direct output volume (post-modulation, doesn't affect modulation of other oscillators)
 * **Feedback:** Oscillator tone/self-PM. Positive values tend towards a saw wave, negative values towards a square wave.
 * **Frequency Controls:**
@@ -29,7 +29,7 @@ There are 6 feedback-capable sine oscillators, each with independent amplitude e
     * **Velocity Sensitivity:** How much MIDI velocity affects oscillator volume.
     * **Keyscaling:** How oscillator volume decreases/increases as pitch rises/falls.
 
-The oscillators modulate each other via a 6x5 matrix, where every oscillator is connected to every other one (excluding itself, since feedback is a separate control with a greater range). It is possible to create cross-oscillator feedback loops (e.g. Osc1 and Osc2 both modulate each other) but they don't typically sound that good (not that I'm stopping you). The matrix is implemented by enforcing a 1-sample delay between oscillators.
+The oscillators modulate each other via a 8x7 matrix, where every oscillator is connected to every other one (excluding itself, since feedback is a separate control with a greater range). It is possible to create cross-oscillator feedback loops (e.g. Osc1 and Osc2 both modulate each other) but they don't typically sound that good (not that I'm stopping you). The matrix is implemented by enforcing a 1-sample delay between oscillators.
 
 There is also a polyphonic multimode filter (Simper SVF), controllable via an ADSR envelope.
 
@@ -97,18 +97,14 @@ The following file/s are additionally available under the ISC license (indicated
     * 8/16/24 bit integer FM calcs from Dexed? (for speed)
     * Optimize
         * Enforce a minimum (constant?) block size
-        * Do all calcs on [f32; 4] arrays and hope for autovectorization (or use std (unstable) SIMD types)
 
 * GUI:
-    * Label modulators & oscillators in matrix
-    * Move matrix to top-left
     * Add feedback, amplitude & filter send to matrix
     * Visualize envelopes & their settings
     * Dark theme
     * Oscilloscope / spectrogram
 
 * Code:
-    * Use `#[nested]` plugin parameters
     * Use more constants for GUI dimensions
 
 * Lofty Wishlist
