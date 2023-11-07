@@ -119,3 +119,9 @@ The following file/s are additionally available under the ISC license (indicated
     * Resizable GUI
     * Good presets
     * Add/remove oscillators
+    
+og pitch + matrix -> phase (0-1) -> phaseshaper (0-1) -> wave -> waveshaper -> matrix -> effects -> out
+
+phaseshapers: powf, mseg, squeeze, sync, quantize, 
+waveshapers: powf, mseg, asymmetric powf, linear fold, sine fold, linear wrap, 
+effects: distortion, chorus, flanger, phaser, delay, reverb, compressor, eq, filter

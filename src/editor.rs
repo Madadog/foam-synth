@@ -4,6 +4,7 @@ use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
 use nih_plug_iced::*;
+use std::default;
 use std::sync::Arc;
 
 use crate::parameters::SynthPluginParams;
@@ -14,7 +15,7 @@ mod envelope;
 mod param_slider;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
-    IcedState::from_size(1000, 700)
+    IcedState::from_size(900, 650)
 }
 
 pub(crate) fn create(
@@ -32,16 +33,7 @@ struct SynthPluginEditor {
     octave_stretch_slider_state: param_slider::State,
     scrollable: widget::scrollable::State,
 
-    filter_enabled_slider_state: param_slider::State,
-    filter_type_slider_state: param_slider::State,
-    filter_cutoff_slider_state: param_slider::State,
-    filter_resonance_slider_state: param_slider::State,
-    filter_keytrack_slider_state: param_slider::State,
-    filter_envelope_amount_slider_state: param_slider::State,
-    filter_envelope_attack_slider_state: param_slider::State,
-    filter_envelope_decay_slider_state: param_slider::State,
-    filter_envelope_sustain_slider_state: param_slider::State,
-    filter_envelope_release_slider_state: param_slider::State,
+    filter_params: FilterWidget,
 
     osc_params_1: OscillatorWidget,
     osc_params_2: OscillatorWidget,
@@ -78,16 +70,7 @@ impl IcedEditor for SynthPluginEditor {
             octave_stretch_slider_state: Default::default(),
             scrollable: Default::default(),
 
-            filter_enabled_slider_state: Default::default(),
-            filter_type_slider_state: Default::default(),
-            filter_cutoff_slider_state: Default::default(),
-            filter_resonance_slider_state: Default::default(),
-            filter_keytrack_slider_state: Default::default(),
-            filter_envelope_amount_slider_state: Default::default(),
-            filter_envelope_attack_slider_state: Default::default(),
-            filter_envelope_decay_slider_state: Default::default(),
-            filter_envelope_sustain_slider_state: Default::default(),
-            filter_envelope_release_slider_state: Default::default(),
+            filter_params: Default::default(),
 
             osc_params_1: OscillatorWidget::new("Osc 1"),
             osc_params_2: OscillatorWidget::new("Osc 2"),
@@ -129,14 +112,15 @@ impl IcedEditor for SynthPluginEditor {
                 Row::new()
                     .padding(Padding::from(10))
                     .spacing(20)
-                    .push(title_bar())
+                    .push(self.matrix.ui_matrix(&self.params))
+                    .push(self.filter_params.ui(&self.params))
                     .push(
-                        Column::new()
-                            .align_items(Alignment::Fill)
+                        title_bar()
+                            .push(Space::with_height(10.into()))
                             .push(
                                 Text::new("Output Gain")
                                     .size(16)
-                                    .width(Length::Fill)
+                                    .width(100.into())
                                     .horizontal_alignment(alignment::Horizontal::Center)
                                     .vertical_alignment(alignment::Vertical::Center),
                             )
@@ -145,14 +129,14 @@ impl IcedEditor for SynthPluginEditor {
                                     .height(20.into())
                                     .width(100.into())
                                     .map(Message::ParamUpdate),
-                                )
+                            )
                             .push(
                                 Text::new("Octave Stretch")
-                                .size(16)
-                                    .width(Length::Fill)
+                                    .size(16)
+                                    .width(100.into())
                                     .horizontal_alignment(alignment::Horizontal::Center)
                                     .vertical_alignment(alignment::Vertical::Center),
-                                )
+                            )
                             .push(
                                 ParamSlider::new(
                                     &mut self.octave_stretch_slider_state,
@@ -161,198 +145,6 @@ impl IcedEditor for SynthPluginEditor {
                                 .height(20.into())
                                 .width(100.into())
                                 .map(Message::ParamUpdate),
-                            ),
-                    )
-                    .push(self.matrix.ui_matrix(&self.params))
-                    .push(
-                        Column::new()
-                            .padding(Padding::new(10))
-                            // .push(Space::with_height(20.into()))
-                            .push(
-                                Text::new("Filter")
-                                    .height(18.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center)
-                                    .font(assets::NOTO_SANS_BOLD),
-                            )
-                            .push(
-                                Row::new()
-                                    .push(
-                                        Column::new()
-                                            .max_width(110)
-                                            .push(
-                                                Text::new("Filter Enabled")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_enabled_slider_state,
-                                                    &self.params.filter_enabled,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Type")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_type_slider_state,
-                                                    &self.params.filter_type,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Cutoff")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_cutoff_slider_state,
-                                                    &self.params.filter_cutoff,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Resonance")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_resonance_slider_state,
-                                                    &self.params.filter_resonance,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Keytrack")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_keytrack_slider_state,
-                                                    &self.params.filter_keytrack,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    )
-                                    .push(
-                                        Column::new()
-                                            .push(
-                                                Text::new("Filter Envelope Amt.")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_envelope_amount_slider_state,
-                                                    &self.params.filter_envelope_amount,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Env. Attack")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_envelope_attack_slider_state,
-                                                    &self.params.filter_envelope_attack,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Env. Decay")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_envelope_decay_slider_state,
-                                                    &self.params.filter_envelope_decay,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Env. Sustain")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_envelope_sustain_slider_state,
-                                                    &self.params.filter_envelope_sustain,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            )
-                                            .push(
-                                                Text::new("Filter Env. Release")
-                                                    .size(16)
-                                                    .width(Length::Fill)
-                                                    .vertical_alignment(
-                                                        alignment::Vertical::Center,
-                                                    ),
-                                            )
-                                            .push(
-                                                ParamSlider::new(
-                                                    &mut self.filter_envelope_release_slider_state,
-                                                    &self.params.filter_envelope_release,
-                                                )
-                                                .height(20.into())
-                                                .width(80.into())
-                                                .map(Message::ParamUpdate),
-                                            ),
-                                    ),
                             ),
                     ),
             )
@@ -554,10 +346,10 @@ impl OscillatorWidget {
         velocity_sensitivity: &'a FloatParam,
         keyscaling: &'a FloatParam,
     ) -> Column<Message> {
-        let param_font_size = 16;
-        let slider_font_size = 16;
-        let slider_width = 80;
-        let slider_height = 16;
+        let param_font_size = 14;
+        let slider_font_size = 14;
+        let slider_width = 60;
+        let slider_height = 14;
         Column::new()
             .push(
                 Text::new(self.name)
@@ -617,6 +409,7 @@ impl OscillatorWidget {
                                 )
                                 .width(slider_width.into())
                                 .height(slider_height.into())
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             ),
                     )
@@ -678,11 +471,12 @@ impl OscillatorWidget {
 
 fn title_bar<'a>() -> Column<'a, Message> {
     Column::new()
-        .align_items(Alignment::Fill)
+        .align_items(Alignment::Start)
+        .max_width(150)
         .push(
             Text::new("Foam Synth GUI")
                 .font(assets::NOTO_SANS_LIGHT)
-                .size(24)
+                .size(20)
                 .horizontal_alignment(alignment::Horizontal::Center)
                 .vertical_alignment(alignment::Vertical::Center),
         )
@@ -765,25 +559,28 @@ struct MatrixWidget {
 impl MatrixWidget {
     fn ui_matrix<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
         let slider_width = 40;
-        let slider_height = 16;
-        let slider_font_size = 14;
+        let slider_height = 14;
+        let slider_font_size = 12;
         let spacing = 4;
         Column::new()
             .spacing(spacing)
             .push(
-                Text::new("FM Matrix")
-                    .font(assets::NOTO_SANS_BOLD)
-                    .size(18)
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center),
-            )
-            .push(
-                Text::new("From")
-                    .font(assets::NOTO_SANS_REGULAR)
-                    .size(16)
-                    .width((slider_width * 9 + spacing * 9 * 2).into())
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center),
+                Row::new()
+                    .push(
+                        Text::new("FM Matrix")
+                            .font(assets::NOTO_SANS_BOLD)
+                            .size(18)
+                            .horizontal_alignment(alignment::Horizontal::Left)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        Text::new("From")
+                            .font(assets::NOTO_SANS_REGULAR)
+                            .size(16)
+                            .width((slider_width * 6 + spacing * 6 * 2).into())
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    ),
             )
             .push({
                 let mut row = Row::new()
@@ -1221,10 +1018,10 @@ impl MatrixWidget {
                     )
                     .push(
                         ParamSlider::new(&mut self._7_6, &params.mod_osc7_by_osc6)
-                        .width(slider_width.into())
-                        .height(slider_height.into())
-                        .text_size(slider_font_size)
-                        .map(Message::ParamUpdate),
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     )
                     .push(Space::new(slider_width.into(), slider_height.into()))
                     .push(
@@ -1283,10 +1080,10 @@ impl MatrixWidget {
                     )
                     .push(
                         ParamSlider::new(&mut self._8_6, &params.mod_osc8_by_osc6)
-                        .width(slider_width.into())
-                        .height(slider_height.into())
-                        .text_size(slider_font_size)
-                        .map(Message::ParamUpdate),
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
                     )
                     .push(
                         ParamSlider::new(&mut self._8_7, &params.mod_osc8_by_osc7)
@@ -1296,6 +1093,197 @@ impl MatrixWidget {
                             .map(Message::ParamUpdate),
                     )
                     .push(Space::new(slider_width.into(), slider_height.into())),
+            )
+    }
+}
+
+#[derive(Default)]
+struct FilterWidget {
+    filter_enabled_slider_state: param_slider::State,
+    filter_type_slider_state: param_slider::State,
+    filter_cutoff_slider_state: param_slider::State,
+    filter_resonance_slider_state: param_slider::State,
+    filter_keytrack_slider_state: param_slider::State,
+    filter_envelope_amount_slider_state: param_slider::State,
+    filter_envelope_attack_slider_state: param_slider::State,
+    filter_envelope_decay_slider_state: param_slider::State,
+    filter_envelope_sustain_slider_state: param_slider::State,
+    filter_envelope_release_slider_state: param_slider::State,
+}
+impl FilterWidget {
+    fn ui<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
+        let slider_height: Length = 16.into();
+        let slider_width: Length = 70.into();
+        let font_size = 14;
+        Column::new()
+            .max_width(270)
+            // .push(Space::with_height(20.into()))
+            .push(
+                Text::new("Filter")
+                    .height(16.into())
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .font(assets::NOTO_SANS_BOLD),
+            )
+            .push(
+                Row::new()
+                    // .spacing(10)
+                    .push(
+                        Column::new()
+                            .max_width(110)
+                            .push(
+                                Text::new("Filter Enabled")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_enabled_slider_state,
+                                    &params.filter_enabled,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Type")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_type_slider_state,
+                                    &params.filter_type,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Cutoff")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_cutoff_slider_state,
+                                    &params.filter_cutoff,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Resonance")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_resonance_slider_state,
+                                    &params.filter_resonance,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Keytrack")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_keytrack_slider_state,
+                                    &params.filter_keytrack,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            ),
+                    )
+                    .push(
+                        Column::new()
+                            .push(
+                                Text::new("Filter Envelope Amt.")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_envelope_amount_slider_state,
+                                    &params.filter_envelope_amount,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Env. Attack")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_envelope_attack_slider_state,
+                                    &params.filter_envelope_attack,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Env. Decay")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_envelope_decay_slider_state,
+                                    &params.filter_envelope_decay,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Env. Sustain")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_envelope_sustain_slider_state,
+                                    &params.filter_envelope_sustain,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Filter Env. Release")
+                                    .size(font_size)
+                                    .width(Length::Fill)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.filter_envelope_release_slider_state,
+                                    &params.filter_envelope_release,
+                                )
+                                .height(slider_height)
+                                .width(slider_width)
+                                .map(Message::ParamUpdate),
+                            ),
+                    ),
             )
     }
 }

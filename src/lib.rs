@@ -8,6 +8,7 @@ mod editor;
 mod parameters;
 mod svf_simper;
 mod voice;
+mod dsp;
 
 struct SynthPlugin {
     params: Arc<SynthPluginParams>,

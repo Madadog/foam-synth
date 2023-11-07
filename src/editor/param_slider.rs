@@ -36,8 +36,8 @@ use nih_plug_iced::widgets::{util, ParamMessage};
 
 /// When shift+dragging a parameter, one pixel dragged corresponds to this much change in the
 /// noramlized parameter.
-const GRANULAR_DRAG_MULTIPLIER: f32 = 0.5;
-const GRANULAR_DRAG_MULTIPLIER_SHIFT: f32 = 0.1;
+const GRANULAR_DRAG_MULTIPLIER: f32 = 0.2;
+const GRANULAR_DRAG_MULTIPLIER_SHIFT: f32 = 0.05;
 
 /// The thickness of this widget's borders.
 const BORDER_WIDTH: f32 = 1.0;
