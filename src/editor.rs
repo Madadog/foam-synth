@@ -1129,7 +1129,7 @@ impl FilterWidget {
                     // .spacing(10)
                     .push(
                         Column::new()
-                            .max_width(110)
+                            .max_width(90)
                             .push(
                                 Text::new("Filter Enabled")
                                     .size(font_size)
