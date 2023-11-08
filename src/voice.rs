@@ -30,8 +30,40 @@ impl VoiceList {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
             *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
-            *self.voices.get_mut(note as usize % 16).unwrap() =
-                Some(Voice::new(note, osc_params, velocity, voice_params));
+            // *self.voices.get_mut(note as usize % 16).unwrap() =
+            //     Some(Voice::new(note, osc_params, velocity, voice_params));
+            if let Some(voice) = self
+                .voices
+                .iter_mut()
+                .flatten()
+                .filter(|voice| voice.is_released())
+                .fold((None, 0), |acc, voice| {
+                    if voice.time >= acc.1 {
+                        let time = voice.time;
+                        (Some(voice), time)
+                    } else {
+                        acc
+                    }
+                })
+                .0
+            {
+                *voice = Voice::new(note, osc_params, velocity, voice_params);
+            } else if let Some(voice) = self
+            .voices
+            .iter_mut()
+            .flatten()
+            .fold((None, 0), |acc, voice| {
+                if voice.time >= acc.1 {
+                    let time = voice.time;
+                    (Some(voice), time)
+                } else {
+                    acc
+                }
+            })
+            .0
+        {
+                *voice = Voice::new(note, osc_params, velocity, voice_params);
+            }
         }
     }
     pub fn release_voice(&mut self, note: u8, params: &OscParamsBatch) {
@@ -129,6 +161,10 @@ impl Voice {
     }
     pub fn release(&mut self, params: &OscParamsBatch) {
         self.oscillators.release(params);
+        self.released_time = Some(self.time);
+    }
+    pub fn is_released(&self) -> bool {
+        self.released_time.is_some()
     }
     pub fn is_done(&mut self, params: &OscParamsBatch) -> bool {
         self.oscillators.is_done(params)
@@ -140,8 +176,11 @@ impl Voice {
         if !voice_params.filter_enabled {
             self.filter = None
         } else {
-            let cutoff =
-                Self::calc_filter_cutoff(self.midi_id, &voice_params, self.calc_filter_envelope(&voice_params));
+            let cutoff = Self::calc_filter_cutoff(
+                self.midi_id,
+                &voice_params,
+                self.calc_filter_envelope(&voice_params),
+            );
             let filter = self.filter.get_or_insert(SvfSimper::new(
                 cutoff,
                 voice_params.filter_resonance,
@@ -381,8 +420,8 @@ macro_rules! aos_to_soa {
             $a[5].$field,
             $a[6].$field,
             $a[7].$field,
-            ]
-        };
+        ]
+    };
 }
 impl From<[OscParams; 8]> for OscParamsBatch {
     fn from(value: [OscParams; 8]) -> Self {
