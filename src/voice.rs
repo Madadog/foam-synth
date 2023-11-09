@@ -30,39 +30,29 @@ impl VoiceList {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
             *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
-            // *self.voices.get_mut(note as usize % 16).unwrap() =
-            //     Some(Voice::new(note, osc_params, velocity, voice_params));
-            if let Some(voice) = self
+            let ((_, released), (_, unreleased)) = self
                 .voices
                 .iter_mut()
                 .flatten()
-                .filter(|voice| voice.is_released())
-                .fold((None, 0), |acc, voice| {
-                    if voice.time >= acc.1 {
-                        let time = voice.time;
-                        (Some(voice), time)
+                .fold(((0, None), (0, None)), |(released, unreleased), voice| {
+                    if voice.is_released() {
+                        if voice.time >= released.0 {
+                            ((voice.time, Some(voice)), unreleased)
+                        } else {
+                            (released, unreleased)
+                        }
                     } else {
-                        acc
+                        if voice.time >= unreleased.0 {
+                            (released, (voice.time, Some(voice)))
+                        } else {
+                            (released, unreleased)
+                        }
                     }
-                })
-                .0
-            {
-                *voice = Voice::new(note, osc_params, velocity, voice_params);
-            } else if let Some(voice) = self
-            .voices
-            .iter_mut()
-            .flatten()
-            .fold((None, 0), |acc, voice| {
-                if voice.time >= acc.1 {
-                    let time = voice.time;
-                    (Some(voice), time)
-                } else {
-                    acc
-                }
-            })
-            .0
-        {
-                *voice = Voice::new(note, osc_params, velocity, voice_params);
+                });
+            if let Some(released) = released {
+                *released = Voice::new(note, osc_params, velocity, voice_params);
+            } else {
+                *unreleased.expect("Could not find any voice slots... Panicking!!!") = Voice::new(note, osc_params, velocity, voice_params);
             }
         }
     }
