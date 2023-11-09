@@ -555,9 +555,9 @@ impl OscillatorBatch {
     ) -> f32x8 {
         let delta = time / sample_rate;
         lerpx8(
-            release_start_level,
             release_end_level,
-            (delta / release)
+            release_start_level,
+            (1.0 - delta / release)
                 .fast_max(0.0.into())
                 .fast_min(1.0.into())
                 .powf(2.0),
