@@ -3,7 +3,10 @@ use std::array;
 // use wide::{f32x8, u32x8, CmpLe};
 use wide::*;
 
-use crate::svf_simper::{FilterType, SvfSimper};
+use crate::{
+    dsp::interpolation::{lerp, lerpx8},
+    svf_simper::{FilterType, SvfSimper},
+};
 
 pub struct VoiceList {
     voices: [Option<Voice>; 32],
@@ -30,11 +33,9 @@ impl VoiceList {
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
             *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
-            let ((_, released), (_, unreleased)) = self
-                .voices
-                .iter_mut()
-                .flatten()
-                .fold(((0, None), (0, None)), |(released, unreleased), voice| {
+            let ((_, released), (_, unreleased)) = self.voices.iter_mut().flatten().fold(
+                ((0, None), (0, None)),
+                |(released, unreleased), voice| {
                     if voice.is_released() {
                         if voice.time >= released.0 {
                             ((voice.time, Some(voice)), unreleased)
@@ -48,11 +49,13 @@ impl VoiceList {
                             (released, unreleased)
                         }
                     }
-                });
+                },
+            );
             if let Some(released) = released {
                 *released = Voice::new(note, osc_params, velocity, voice_params);
             } else {
-                *unreleased.expect("Could not find any voice slots... Panicking!!!") = Voice::new(note, osc_params, velocity, voice_params);
+                *unreleased.expect("Could not find any voice slots... Panicking!!!") =
+                    Voice::new(note, osc_params, velocity, voice_params);
             }
         }
     }
@@ -163,9 +166,7 @@ impl Voice {
         self.oscillators.update_pitch(params);
     }
     pub fn sample_update(&mut self, _params: &OscParamsBatch, voice_params: VoiceParams) {
-        if !voice_params.filter_enabled {
-            self.filter = None
-        } else {
+        if voice_params.filter_enabled {
             let cutoff = Self::calc_filter_cutoff(
                 self.midi_id,
                 &voice_params,
@@ -182,6 +183,8 @@ impl Voice {
                 voice_params.sample_rate,
             );
             filter.set_filter_type(voice_params.filter_type);
+        } else {
+            self.filter = None
         }
     }
     fn calc_filter_envelope(&self, voice_params: &VoiceParams) -> f32 {
@@ -232,8 +235,14 @@ pub struct OscParams {
     pub coarse: f32,
     pub fine: f32,
     pub frequency_mult: f32,
-    pub initial_phase: f32,
+    pub hz_detune: f32,
+    pub phase_offset: f32,
+    pub phase_rand: f32,
+    pub attack_level: f32,
+    pub release_level: f32,
+    pub delay: f32,
     pub attack: f32,
+    pub hold: f32,
     pub decay: f32,
     pub sustain: f32,
     pub release: f32,
@@ -387,8 +396,14 @@ pub struct OscParamsBatch {
     pub coarse: f32x8,
     pub fine: f32x8,
     pub frequency_mult: f32x8,
-    pub initial_phase: f32x8,
+    pub hz_detune: f32x8,
+    pub phase_offset: f32x8,
+    pub phase_rand: f32x8,
+    pub attack_level: f32x8,
+    pub release_level: f32x8,
+    pub delay: f32x8,
     pub attack: f32x8,
+    pub hold: f32x8,
     pub decay: f32x8,
     pub sustain: f32x8,
     pub release: f32x8,
@@ -421,8 +436,14 @@ impl From<[OscParams; 8]> for OscParamsBatch {
             coarse: f32x8::from(aos_to_soa!(value, coarse)),
             fine: f32x8::from(aos_to_soa!(value, fine)),
             frequency_mult: f32x8::from(aos_to_soa!(value, frequency_mult)),
-            initial_phase: f32x8::from(aos_to_soa!(value, initial_phase)),
+            hz_detune: f32x8::from(aos_to_soa!(value, hz_detune)),
+            phase_offset: f32x8::from(aos_to_soa!(value, phase_offset)),
+            phase_rand: f32x8::from(aos_to_soa!(value, phase_rand)),
+            attack_level: f32x8::from(aos_to_soa!(value, attack_level)),
+            release_level: f32x8::from(aos_to_soa!(value, release_level)),
+            delay: f32x8::from(aos_to_soa!(value, delay)),
             attack: f32x8::from(aos_to_soa!(value, attack)),
+            hold: f32x8::from(aos_to_soa!(value, hold)),
             decay: f32x8::from(aos_to_soa!(value, decay)),
             sustain: f32x8::from(aos_to_soa!(value, sustain)),
             release: f32x8::from(aos_to_soa!(value, release)),
@@ -441,8 +462,8 @@ pub struct OscillatorBatch {
     phase: f32x8,
     time: f32x8,
     release_time: Option<f32x8>,
-    release_level: f32x8,
-    previous_sine: [f32x8; 2],
+    release_start_level: f32x8,
+    previous_wave: [f32x8; 2],
     previous_output: f32x8,
     gain: f32x8,
 }
@@ -459,8 +480,8 @@ impl OscillatorBatch {
             phase: f32x8::splat(0.0),
             time: f32x8::splat(0.0),
             release_time: None,
-            release_level: f32x8::splat(0.0),
-            previous_sine: [f32x8::splat(0.0); 2],
+            release_start_level: f32x8::splat(0.0),
+            previous_wave: [f32x8::splat(0.0); 2],
             previous_output: f32x8::splat(0.0),
             gain: (params.velocity_sensitivity * velocity + 1.0
                 - params.velocity_sensitivity.max(f32x8::splat(0.0)))
@@ -473,13 +494,17 @@ impl OscillatorBatch {
                 params.sample_rate,
                 released_time,
                 params.release,
-                self.release_level,
+                self.release_start_level,
+                params.release_level,
             )
         } else {
             Self::ads_envelope(
                 params.sample_rate,
                 self.time,
+                params.delay,
+                params.attack_level,
                 params.attack,
+                params.hold,
                 params.decay,
                 params.sustain,
             )
@@ -488,7 +513,10 @@ impl OscillatorBatch {
     fn ads_envelope(
         sample_rate: f32x8,
         time: f32x8,
+        delay: f32x8,
+        attack_level: f32x8,
         attack: f32x8,
+        hold: f32x8,
         decay: f32x8,
         sustain: f32x8,
     ) -> f32x8 {
@@ -502,29 +530,47 @@ impl OscillatorBatch {
         // }
         // .max(0.0)
         let time = time / sample_rate;
-        let attack_level = (time / attack) & time.cmp_lt(attack);
-        let decay_level = ((1.0 - ((time - attack) / decay)).powf(2.0) * (1.0 - sustain) + sustain)
-            & time.cmp_lt(attack + decay)
-            & time.cmp_ge(attack);
-        let sustain = sustain & time.cmp_ge(attack + decay);
-        (attack_level + decay_level + sustain).max(0.0.into())
+        let attack_level = lerpx8(
+            attack_level,
+            f32x8::splat(1.0),
+            (time - delay).fast_max(0.0.into()) / attack,
+        ) & time.cmp_lt(delay + attack);
+        let hold_level =
+            f32x8::splat(1.0) & time.cmp_lt(delay + attack + hold) & time.cmp_ge(delay + attack);
+        let decay_level = ((1.0 - ((time - delay - attack - hold) / decay)).powf(2.0)
+            * (1.0 - sustain)
+            + sustain)
+            & time.cmp_lt(delay + attack + hold + decay)
+            & time.cmp_ge(delay + attack + hold);
+        let sustain = sustain & time.cmp_ge(delay + attack + hold + decay);
+        (attack_level + hold_level + decay_level + sustain).max(0.0.into())
     }
 
     fn release_envelope(
         sample_rate: f32x8,
         time: f32x8,
         release: f32x8,
-        release_level: f32x8,
+        release_start_level: f32x8,
+        release_end_level: f32x8,
     ) -> f32x8 {
         let delta = time / sample_rate;
-        release_level * (1.0 - (delta / release)).max(0.0.into()).powf(2.0)
+        lerpx8(
+            release_start_level,
+            release_end_level,
+            (delta / release)
+                .fast_max(0.0.into())
+                .fast_min(1.0.into())
+                .powf(2.0),
+        )
     }
     fn get_pitch(midi_id: u8, params: &OscParamsBatch) -> f32x8 {
-        f32x8::splat(2.0).pow_f32x8(
+        (f32x8::splat(2.0).pow_f32x8(
             (midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0)
                 / (12.0 / params.octave_stretch),
         ) * 440.0
             * params.frequency_mult
+            + params.hz_detune)
+            .fast_max(f32x8::splat(0.0))
     }
     fn update_pitch(&mut self, params: &OscParamsBatch) {
         self.frequency = OscillatorBatch::get_pitch(self.midi_id, params);
@@ -532,7 +578,7 @@ impl OscillatorBatch {
     fn step(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.time = self.time + 1.0;
         // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
-        let prev = (self.previous_sine[0] + self.previous_sine[1]) / 2.0;
+        let prev = (self.previous_wave[0] + self.previous_wave[1]) / 2.0;
         // let feedback = if params.feedback.is_sign_negative() {
         //     prev.powi(2)
         // } else {
@@ -544,20 +590,20 @@ impl OscillatorBatch {
             (negative_feedback + positive_feedback) * params.feedback.abs()
         };
         let phase = self.phase + feedback + pm;
-        self.previous_sine[1] = self.previous_sine[0];
-        self.previous_sine[0] = (phase * std::f32::consts::TAU).sin();
+        self.previous_wave[1] = self.previous_wave[0];
+        self.previous_wave[0] = (phase * std::f32::consts::TAU + params.phase_offset).sin();
         self.add_phase(OscillatorBatch::calculate_delta(
             self.frequency,
             params.sample_rate,
         ));
-        self.previous_sine[0] * self.gain
+        self.previous_wave[0] * self.gain
     }
     fn step_with_envelope(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.previous_output = self.step(params, pm) * self.envelope(params);
         self.previous_output * params.output_gain
     }
     fn release(&mut self, params: &OscParamsBatch) {
-        self.release_level = self.envelope(params);
+        self.release_start_level = self.envelope(params);
         self.release_time = Some(self.time);
     }
     fn time_since_release(&self) -> Option<f32x8> {

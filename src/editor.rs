@@ -7,7 +7,7 @@ use nih_plug_iced::*;
 use std::default;
 use std::sync::Arc;
 
-use crate::parameters::SynthPluginParams;
+use crate::parameters::{OscillatorParams, SynthPluginParams};
 
 use self::param_slider::ParamSlider;
 
@@ -15,7 +15,7 @@ mod envelope;
 mod param_slider;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
-    IcedState::from_size(900, 650)
+    IcedState::from_size(1000, 650)
 }
 
 pub(crate) fn create(
@@ -156,123 +156,19 @@ impl IcedEditor for SynthPluginEditor {
                             Row::new()
                                 .padding(Padding::from(5))
                                 .spacing(20)
-                                .push(self.osc_params_1.content(
-                                    &self.params.osc1_params.amp,
-                                    &self.params.osc1_params.coarse,
-                                    &self.params.osc1_params.fine,
-                                    &self.params.osc1_params.freq_mult,
-                                    &self.params.osc1_params.freq_div,
-                                    &self.params.osc1_params.attack,
-                                    &self.params.osc1_params.decay,
-                                    &self.params.osc1_params.sustain,
-                                    &self.params.osc1_params.release,
-                                    &self.params.osc1_params.feedback,
-                                    &self.params.osc1_params.velocity_sensitivity,
-                                    &self.params.osc1_params.keyscaling,
-                                ))
-                                .push(self.osc_params_2.content(
-                                    &self.params.osc2_params.amp,
-                                    &self.params.osc2_params.coarse,
-                                    &self.params.osc2_params.fine,
-                                    &self.params.osc2_params.freq_mult,
-                                    &self.params.osc2_params.freq_div,
-                                    &self.params.osc2_params.attack,
-                                    &self.params.osc2_params.decay,
-                                    &self.params.osc2_params.sustain,
-                                    &self.params.osc2_params.release,
-                                    &self.params.osc2_params.feedback,
-                                    &self.params.osc2_params.velocity_sensitivity,
-                                    &self.params.osc2_params.keyscaling,
-                                ))
-                                .push(self.osc_params_3.content(
-                                    &self.params.osc3_params.amp,
-                                    &self.params.osc3_params.coarse,
-                                    &self.params.osc3_params.fine,
-                                    &self.params.osc3_params.freq_mult,
-                                    &self.params.osc3_params.freq_div,
-                                    &self.params.osc3_params.attack,
-                                    &self.params.osc3_params.decay,
-                                    &self.params.osc3_params.sustain,
-                                    &self.params.osc3_params.release,
-                                    &self.params.osc3_params.feedback,
-                                    &self.params.osc3_params.velocity_sensitivity,
-                                    &self.params.osc3_params.keyscaling,
-                                ))
-                                .push(self.osc_params_4.content(
-                                    &self.params.osc4_params.amp,
-                                    &self.params.osc4_params.coarse,
-                                    &self.params.osc4_params.fine,
-                                    &self.params.osc4_params.freq_mult,
-                                    &self.params.osc4_params.freq_div,
-                                    &self.params.osc4_params.attack,
-                                    &self.params.osc4_params.decay,
-                                    &self.params.osc4_params.sustain,
-                                    &self.params.osc4_params.release,
-                                    &self.params.osc4_params.feedback,
-                                    &self.params.osc4_params.velocity_sensitivity,
-                                    &self.params.osc4_params.keyscaling,
-                                )),
+                                .push(self.osc_params_1.content(&self.params.osc1_params))
+                                .push(self.osc_params_2.content(&self.params.osc2_params))
+                                .push(self.osc_params_3.content(&self.params.osc3_params))
+                                .push(self.osc_params_4.content(&self.params.osc4_params)),
                         )
                         .push(
                             Row::new()
                                 .padding(Padding::from(5))
                                 .spacing(20)
-                                .push(self.osc_params_5.content(
-                                    &self.params.osc5_params.amp,
-                                    &self.params.osc5_params.coarse,
-                                    &self.params.osc5_params.fine,
-                                    &self.params.osc5_params.freq_mult,
-                                    &self.params.osc5_params.freq_div,
-                                    &self.params.osc5_params.attack,
-                                    &self.params.osc5_params.decay,
-                                    &self.params.osc5_params.sustain,
-                                    &self.params.osc5_params.release,
-                                    &self.params.osc5_params.feedback,
-                                    &self.params.osc5_params.velocity_sensitivity,
-                                    &self.params.osc5_params.keyscaling,
-                                ))
-                                .push(self.osc_params_6.content(
-                                    &self.params.osc6_params.amp,
-                                    &self.params.osc6_params.coarse,
-                                    &self.params.osc6_params.fine,
-                                    &self.params.osc6_params.freq_mult,
-                                    &self.params.osc6_params.freq_div,
-                                    &self.params.osc6_params.attack,
-                                    &self.params.osc6_params.decay,
-                                    &self.params.osc6_params.sustain,
-                                    &self.params.osc6_params.release,
-                                    &self.params.osc6_params.feedback,
-                                    &self.params.osc6_params.velocity_sensitivity,
-                                    &self.params.osc6_params.keyscaling,
-                                ))
-                                .push(self.osc_params_7.content(
-                                    &self.params.osc7_params.amp,
-                                    &self.params.osc7_params.coarse,
-                                    &self.params.osc7_params.fine,
-                                    &self.params.osc7_params.freq_mult,
-                                    &self.params.osc7_params.freq_div,
-                                    &self.params.osc7_params.attack,
-                                    &self.params.osc7_params.decay,
-                                    &self.params.osc7_params.sustain,
-                                    &self.params.osc7_params.release,
-                                    &self.params.osc7_params.feedback,
-                                    &self.params.osc7_params.velocity_sensitivity,
-                                    &self.params.osc7_params.keyscaling,
-                                ))
-                                .push(self.osc_params_8.content(
-                                    &self.params.osc8_params.amp,
-                                    &self.params.osc8_params.coarse,
-                                    &self.params.osc8_params.fine,
-                                    &self.params.osc8_params.freq_mult,
-                                    &self.params.osc8_params.freq_div,
-                                    &self.params.osc8_params.attack,
-                                    &self.params.osc8_params.decay,
-                                    &self.params.osc8_params.sustain,
-                                    &self.params.osc8_params.release,
-                                    &self.params.osc8_params.feedback,
-                                    &self.params.osc8_params.velocity_sensitivity,
-                                    &self.params.osc8_params.keyscaling,
-                                )),
+                                .push(self.osc_params_5.content(&self.params.osc5_params))
+                                .push(self.osc_params_6.content(&self.params.osc6_params))
+                                .push(self.osc_params_7.content(&self.params.osc7_params))
+                                .push(self.osc_params_8.content(&self.params.osc8_params)),
                         ),
                 ),
             )
@@ -304,7 +200,14 @@ struct OscillatorWidget {
     pub fine: param_slider::State,
     pub freq_mult: param_slider::State,
     pub freq_div: param_slider::State,
+    pub hz_detune: param_slider::State,
+    pub phase_offset: param_slider::State,
+    pub phase_rand: param_slider::State,
+    pub attack_level: param_slider::State,
+    pub release_level: param_slider::State,
+    pub delay: param_slider::State,
     pub attack: param_slider::State,
+    pub hold: param_slider::State,
     pub decay: param_slider::State,
     pub sustain: param_slider::State,
     pub release: param_slider::State,
@@ -322,7 +225,14 @@ impl OscillatorWidget {
             fine: Default::default(),
             freq_mult: Default::default(),
             freq_div: Default::default(),
+            hz_detune: Default::default(),
+            phase_offset: Default::default(),
+            phase_rand: Default::default(),
+            attack_level: Default::default(),
+            release_level: Default::default(),
+            delay: Default::default(),
             attack: Default::default(),
+            hold: Default::default(),
             decay: Default::default(),
             sustain: Default::default(),
             release: Default::default(),
@@ -333,18 +243,26 @@ impl OscillatorWidget {
     }
     fn content<'a>(
         &'a mut self,
-        amp: &'a FloatParam,
-        coarse: &'a FloatParam,
-        fine: &'a FloatParam,
-        freq_mult: &'a FloatParam,
-        freq_div: &'a FloatParam,
-        attack: &'a FloatParam,
-        decay: &'a FloatParam,
-        sustain: &'a FloatParam,
-        release: &'a FloatParam,
-        feedback: &'a FloatParam,
-        velocity_sensitivity: &'a FloatParam,
-        keyscaling: &'a FloatParam,
+        // amp: &'a FloatParam,
+        // coarse: &'a FloatParam,
+        // fine: &'a FloatParam,
+        // freq_mult: &'a FloatParam,
+        // freq_div: &'a FloatParam,
+        // hz_detune: &'a FloatParam,
+        // phase_offset: &'a FloatParam,
+        // phase_rand: &'a FloatParam,
+        // attack_level: &'a FloatParam,
+        // release_level: &'a FloatParam,
+        // delay: &'a FloatParam,
+        // attack: &'a FloatParam,
+        // hold: &'a FloatParam,
+        // decay: &'a FloatParam,
+        // sustain: &'a FloatParam,
+        // release: &'a FloatParam,
+        // feedback: &'a FloatParam,
+        // velocity_sensitivity: &'a FloatParam,
+        // keyscaling: &'a FloatParam,
+        osc_params: &'a OscillatorParams,
     ) -> Column<Message> {
         let param_font_size = 14;
         let slider_font_size = 14;
@@ -363,7 +281,7 @@ impl OscillatorWidget {
                         Column::new()
                             .push(Text::new("Amplitude").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.amp, amp)
+                                ParamSlider::new(&mut self.amp, &osc_params.amp)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -371,7 +289,7 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Attack").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.attack, attack)
+                                ParamSlider::new(&mut self.attack, &osc_params.attack)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -379,7 +297,7 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Decay").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.decay, decay)
+                                ParamSlider::new(&mut self.decay, &osc_params.decay)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -387,7 +305,7 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Sustain").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.sustain, sustain)
+                                ParamSlider::new(&mut self.sustain, &osc_params.sustain)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -395,17 +313,17 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Release").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.release, release)
+                                ParamSlider::new(&mut self.release, &osc_params.release)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
                             )
-                            .push(Text::new("Velocity Sens.").size(param_font_size))
+                            .push(Text::new("Velo. Sens.").size(param_font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.velocity_sensitivity,
-                                    velocity_sensitivity,
+                                    &osc_params.velocity_sensitivity,
                                 )
                                 .width(slider_width.into())
                                 .height(slider_height.into())
@@ -418,7 +336,7 @@ impl OscillatorWidget {
                         Column::new()
                             .push(Text::new("Feedback").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.feedback, feedback)
+                                ParamSlider::new(&mut self.feedback, &osc_params.feedback)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -426,7 +344,7 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Coarse Det.").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.coarse, coarse)
+                                ParamSlider::new(&mut self.coarse, &osc_params.coarse)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -434,15 +352,15 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Fine Detune").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.fine, fine)
+                                ParamSlider::new(&mut self.fine, &osc_params.fine)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
                             )
-                            .push(Text::new("Freq. Multiply").size(param_font_size))
+                            .push(Text::new("Freq. Mult.").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.freq_mult, freq_mult)
+                                ParamSlider::new(&mut self.freq_mult, &osc_params.freq_mult)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -450,7 +368,7 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Freq. Divide").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.freq_div, freq_div)
+                                ParamSlider::new(&mut self.freq_div, &osc_params.freq_div)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -458,7 +376,62 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Keyscaling").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.keyscaling, keyscaling)
+                                ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                        )
+                    .push(Space::with_width(8.into()))
+                    .push(
+                        Column::new()
+                            .push(Text::new("Hz Detune").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.hz_detune, &osc_params.hz_detune)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Phase").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.phase_offset, &osc_params.phase_offset)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Atk. Level").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.attack_level, &osc_params.attack_level)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Rls. Level").size(param_font_size))
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.release_level,
+                                    &osc_params.release_level,
+                                )
+                                .width(slider_width.into())
+                                .height(slider_height.into())
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Delay").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.delay, &osc_params.delay)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Hold").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.hold, &osc_params.hold)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -1112,11 +1085,12 @@ struct FilterWidget {
 }
 impl FilterWidget {
     fn ui<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
-        let slider_height: Length = 16.into();
-        let slider_width: Length = 70.into();
+        let slider_height: Length = 14.into();
+        let slider_width: Length = 60.into();
+        let slider_font_size = 14;
         let font_size = 14;
         Column::new()
-            .max_width(270)
+            .max_width(200)
             // .push(Space::with_height(20.into()))
             .push(
                 Text::new("Filter")
@@ -1131,7 +1105,7 @@ impl FilterWidget {
                         Column::new()
                             .max_width(90)
                             .push(
-                                Text::new("Filter Enabled")
+                                Text::new("Enabled")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1143,10 +1117,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Type")
+                                Text::new("Type")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1158,10 +1133,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Cutoff")
+                                Text::new("Cutoff")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1173,10 +1149,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Resonance")
+                                Text::new("Resonance")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1188,10 +1165,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Keytrack")
+                                Text::new("Keytrack")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1203,13 +1181,14 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             ),
                     )
                     .push(
                         Column::new()
                             .push(
-                                Text::new("Filter Envelope Amt.")
+                                Text::new("Envelope Amt.")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1221,10 +1200,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Env. Attack")
+                                Text::new("Filter Attack")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1236,10 +1216,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Env. Decay")
+                                Text::new("Filter Decay")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1251,10 +1232,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Env. Sustain")
+                                Text::new("Filter Sustain")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1266,10 +1248,11 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
                             .push(
-                                Text::new("Filter Env. Release")
+                                Text::new("Filter Release")
                                     .size(font_size)
                                     .width(Length::Fill)
                                     .vertical_alignment(alignment::Vertical::Center),
@@ -1281,6 +1264,7 @@ impl FilterWidget {
                                 )
                                 .height(slider_height)
                                 .width(slider_width)
+                                .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             ),
                     ),

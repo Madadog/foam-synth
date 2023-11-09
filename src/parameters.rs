@@ -1,5 +1,6 @@
 use nih_plug::prelude::*;
 use nih_plug_iced::IcedState;
+use std::f32::consts::PI;
 use std::sync::Arc;
 
 use crate::editor;
@@ -38,8 +39,22 @@ pub struct OscillatorParams {
     pub freq_mult: FloatParam,
     #[id = "freq_div"]
     pub freq_div: FloatParam,
+    #[id = "hz_detune"]
+    pub hz_detune: FloatParam,
+    #[id = "phase_offset"]
+    pub phase_offset: FloatParam,
+    #[id = "phase_rand"]
+    pub phase_rand: FloatParam,
+    #[id = "initial_level"]
+    pub attack_level: FloatParam,
+    #[id = "release_level"]
+    pub release_level: FloatParam,
+    #[id = "delay"]
+    pub delay: FloatParam,
     #[id = "attack"]
     pub attack: FloatParam,
+    #[id = "hold"]
+    pub hold: FloatParam,
     #[id = "decay"]
     pub decay: FloatParam,
     #[id = "sustain"]
@@ -94,7 +109,53 @@ impl OscillatorParams {
                 FREQ_MULT_DIV_RANGE,
             )
             .with_step_size(1.0),
+            hz_detune: FloatParam::new(
+                format!("Osc{} +/- Hz", index + 1),
+                0.0,
+                FloatRange::SymmetricalSkewed {
+                    min: -10000.0,
+                    max: 10000.0,
+                    factor: 0.4,
+                    center: 0.0,
+                },
+            ),
+            phase_offset: FloatParam::new(
+                format!("Osc{} Phase", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: -180.0,
+                    max: 180.0,
+                },
+            ),
+            phase_rand: FloatParam::new(
+                format!("Osc{} Phase Rand", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            ),
+            attack_level: FloatParam::new(
+                format!("Osc{} Atk. Level", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                },
+            ),
+            release_level: FloatParam::new(
+                format!("Osc{} Rls. Level", index + 1),
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                },
+            ),
+            delay: FloatParam::new(format!("Osc{} Delay", index + 1), 0.0, ATTACK_DECAY_RANGE)
+                .with_unit("s"),
             attack: FloatParam::new(format!("Osc{} Attack", index + 1), 0.0, ATTACK_DECAY_RANGE)
+                .with_unit("s"),
+            hold: FloatParam::new(format!("Osc{} Hold", index + 1), 0.0, ATTACK_DECAY_RANGE)
                 .with_unit("s"),
             decay: FloatParam::new(format!("Osc{} Decay", index + 1), 0.5, ATTACK_DECAY_RANGE)
                 .with_unit("s"),
@@ -138,8 +199,14 @@ impl OscillatorParams {
             coarse: self.coarse.value(),
             fine: self.fine.value(),
             frequency_mult: self.freq_mult.value() / self.freq_div.value(),
-            initial_phase: 0.0,
+            hz_detune: self.hz_detune.value(),
+            phase_offset: self.phase_offset.value() / 180.0 * PI,
+            phase_rand: self.phase_rand.value(),
+            attack_level: self.attack_level.value(),
+            release_level: self.release_level.value(),
+            delay: self.delay.value(),
             attack: self.attack.value(),
+            hold: self.hold.value(),
             decay: self.decay.value(),
             sustain: self.sustain.value(),
             release: self.release.value(),
@@ -329,13 +396,13 @@ impl Default for SynthPluginParams {
             // as decibels is easier to work with, but requires a conversion for every sample.
             gain: FloatParam::new(
                 "Gain",
-                util::db_to_gain(-12.0),
+                util::db_to_gain(-18.0),
                 FloatRange::Skewed {
                     min: util::db_to_gain(-70.0),
                     max: util::db_to_gain(0.0),
                     // This makes the range appear as if it was linear when displaying the values as
                     // decibels
-                    factor: FloatRange::gain_skew_factor(util::db_to_gain(-70.0), util::db_to_gain(0.0)),
+                    factor: FloatRange::gain_skew_factor(-70.0, 0.0),
                 },
             )
             // Because the gain parameter is stored as linear gain instead of storing the value as
