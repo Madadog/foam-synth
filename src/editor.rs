@@ -1,5 +1,7 @@
 use nih_plug::prelude::FloatParam;
 use nih_plug::prelude::{util, Editor, GuiContext};
+use nih_plug_iced::canvas::Cache;
+use nih_plug_iced::renderer::Renderer;
 use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
@@ -25,6 +27,74 @@ pub(crate) fn create(
     create_iced_editor::<SynthPluginEditor>(editor_state, params)
 }
 
+#[derive(Debug, Clone)]
+struct CanvasTest {
+    size: f32,
+    attack: f32,
+    decay: f32,
+    sustain: f32,
+    release: f32,
+}
+impl CanvasTest {
+    fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Self {
+        Self {
+            size: 5.0,
+            attack,
+            decay,
+            sustain,
+            release,
+        }
+    }
+}
+impl canvas::Program<Message> for CanvasTest {
+    fn draw(&self, bounds: Rectangle, _cursor: canvas::Cursor) -> Vec<canvas::Geometry> {
+        // We prepare a new `Frame`
+        let mut frame = canvas::Frame::new(bounds.size());
+
+        // We create a `Path` representing a simple circle
+        let circle = canvas::Path::circle(frame.center(), self.size);
+
+        let attack = canvas::Path::line(
+            Point::new(0.0, -bounds.height),
+            Point::new(self.attack * 10.0, 0.0),
+        );
+        let decay = canvas::Path::line(
+            Point::new(self.attack * 10.0, bounds.height),
+            Point::new(
+                self.attack * 10.0 + self.decay * 10.0,
+                self.sustain * bounds.height,
+            ),
+        );
+        let sustain = canvas::Path::line(
+            Point::new(self.attack * 10.0 + self.decay * 10.0, self.sustain * 10.0),
+            Point::new(
+                self.attack * 10.0 + self.decay * 10.0 + 10.0,
+                self.sustain * bounds.height,
+            ),
+        );
+        let release = canvas::Path::line(
+            Point::new(
+                self.attack * 10.0 + self.decay * 10.0 + 10.0,
+                self.sustain * bounds.height,
+            ),
+            Point::new(
+                self.attack * 10.0 + self.decay * 10.0 + self.release * 10.0 + 10.0,
+                0.0,
+            ),
+        );
+
+        for i in [attack, decay, sustain, release] {
+            frame.stroke(&i, canvas::Stroke::default())
+        }
+
+        // And fill it with some color
+        // frame.fill(&circle, Color::BLACK);
+
+        // Finally, we produce the geometry
+        vec![frame.into_geometry()]
+    }
+}
+
 struct SynthPluginEditor {
     params: Arc<SynthPluginParams>,
     context: Arc<dyn GuiContext>,
@@ -34,6 +104,7 @@ struct SynthPluginEditor {
     scrollable: widget::scrollable::State,
 
     filter_params: FilterWidget,
+    global_envelope: GlobalEnvelopeWidget,
 
     osc_params_1: OscillatorWidget,
     osc_params_2: OscillatorWidget,
@@ -44,6 +115,8 @@ struct SynthPluginEditor {
     osc_params_7: OscillatorWidget,
     osc_params_8: OscillatorWidget,
 
+    // canvas: Canvas<Message, CanvasTest>,
+    // canvas_cache: Arc<Cache>,
     matrix: MatrixWidget,
 }
 
@@ -71,6 +144,7 @@ impl IcedEditor for SynthPluginEditor {
             scrollable: Default::default(),
 
             filter_params: Default::default(),
+            global_envelope: Default::default(),
 
             osc_params_1: OscillatorWidget::new("Osc 1"),
             osc_params_2: OscillatorWidget::new("Osc 2"),
@@ -81,6 +155,7 @@ impl IcedEditor for SynthPluginEditor {
             osc_params_7: OscillatorWidget::new("Osc 7"),
             osc_params_8: OscillatorWidget::new("Osc 8"),
 
+            // canvas: Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)),
             matrix: Default::default(),
         };
 
@@ -114,6 +189,8 @@ impl IcedEditor for SynthPluginEditor {
                     .spacing(20)
                     .push(self.matrix.ui_matrix(&self.params))
                     .push(self.filter_params.ui(&self.params))
+                    .push(self.global_envelope.ui(&self.params))
+                    .push(Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)))
                     .push(
                         title_bar()
                             .push(Space::with_height(10.into()))
@@ -241,29 +318,7 @@ impl OscillatorWidget {
             keyscaling: Default::default(),
         }
     }
-    fn content<'a>(
-        &'a mut self,
-        // amp: &'a FloatParam,
-        // coarse: &'a FloatParam,
-        // fine: &'a FloatParam,
-        // freq_mult: &'a FloatParam,
-        // freq_div: &'a FloatParam,
-        // hz_detune: &'a FloatParam,
-        // phase_offset: &'a FloatParam,
-        // phase_rand: &'a FloatParam,
-        // attack_level: &'a FloatParam,
-        // release_level: &'a FloatParam,
-        // delay: &'a FloatParam,
-        // attack: &'a FloatParam,
-        // hold: &'a FloatParam,
-        // decay: &'a FloatParam,
-        // sustain: &'a FloatParam,
-        // release: &'a FloatParam,
-        // feedback: &'a FloatParam,
-        // velocity_sensitivity: &'a FloatParam,
-        // keyscaling: &'a FloatParam,
-        osc_params: &'a OscillatorParams,
-    ) -> Column<Message> {
+    fn content<'a>(&'a mut self, osc_params: &'a OscillatorParams) -> Column<Message> {
         let param_font_size = 14;
         let slider_font_size = 14;
         let slider_width = 60;
@@ -271,67 +326,12 @@ impl OscillatorWidget {
         Column::new()
             .push(
                 Text::new(self.name)
-                    .height(18.into())
+                    .size(18)
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .font(assets::NOTO_SANS_BOLD),
             )
             .push(
                 Row::new()
-                    .push(
-                        Column::new()
-                            .push(Text::new("Amplitude").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.amp, &osc_params.amp)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Attack").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.attack, &osc_params.attack)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Decay").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.decay, &osc_params.decay)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Sustain").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.sustain, &osc_params.sustain)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Release").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.release, &osc_params.release)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Velo. Sens.").size(param_font_size))
-                            .push(
-                                ParamSlider::new(
-                                    &mut self.velocity_sensitivity,
-                                    &osc_params.velocity_sensitivity,
-                                )
-                                .width(slider_width.into())
-                                .height(slider_height.into())
-                                .text_size(slider_font_size)
-                                .map(Message::ParamUpdate),
-                            ),
-                    )
-                    .push(Space::with_width(8.into()))
                     .push(
                         Column::new()
                             .push(Text::new("Feedback").size(param_font_size))
@@ -374,21 +374,81 @@ impl OscillatorWidget {
                                     .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
                             )
-                            .push(Text::new("Keyscaling").size(param_font_size))
+                            .push(Text::new("Hz Detune").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
+                                ParamSlider::new(&mut self.hz_detune, &osc_params.hz_detune)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            ),
+                    )
+                    .push(Space::with_width(8.into()))
+                    .push(
+                        Column::new()
+                            .push(Text::new("Delay").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.delay, &osc_params.delay)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
                             )
-                        )
+                            .push(Text::new("Attack").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.attack, &osc_params.attack)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Hold").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.hold, &osc_params.hold)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Decay").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.decay, &osc_params.decay)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Sustain").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.sustain, &osc_params.sustain)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Release").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.release, &osc_params.release)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            ),
+                    )
                     .push(Space::with_width(8.into()))
                     .push(
                         Column::new()
-                            .push(Text::new("Hz Detune").size(param_font_size))
+                            .push(Text::new("Amplitude").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.hz_detune, &osc_params.hz_detune)
+                                ParamSlider::new(&mut self.amp, &osc_params.amp)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Atk. Level").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.attack_level, &osc_params.attack_level)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -402,9 +462,20 @@ impl OscillatorWidget {
                                     .text_size(slider_font_size)
                                     .map(Message::ParamUpdate),
                             )
-                            .push(Text::new("Atk. Level").size(param_font_size))
+                            .push(Text::new("Velo. Sens.").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.attack_level, &osc_params.attack_level)
+                                ParamSlider::new(
+                                    &mut self.velocity_sensitivity,
+                                    &osc_params.velocity_sensitivity,
+                                )
+                                .width(slider_width.into())
+                                .height(slider_height.into())
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Keyscaling").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
                                     .width(slider_width.into())
                                     .height(slider_height.into())
                                     .text_size(slider_font_size)
@@ -420,22 +491,6 @@ impl OscillatorWidget {
                                 .height(slider_height.into())
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Delay").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.delay, &osc_params.delay)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(Text::new("Hold").size(param_font_size))
-                            .push(
-                                ParamSlider::new(&mut self.hold, &osc_params.hold)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
                             ),
                     ),
             )
@@ -465,6 +520,7 @@ fn title_bar<'a>() -> Column<'a, Message> {
 
 #[derive(Debug, Default)]
 struct MatrixWidget {
+    _1_1: param_slider::State,
     _1_2: param_slider::State,
     _1_3: param_slider::State,
     _1_4: param_slider::State,
@@ -474,6 +530,7 @@ struct MatrixWidget {
     _1_8: param_slider::State,
 
     _2_1: param_slider::State,
+    _2_2: param_slider::State,
     _2_3: param_slider::State,
     _2_4: param_slider::State,
     _2_5: param_slider::State,
@@ -483,6 +540,7 @@ struct MatrixWidget {
 
     _3_1: param_slider::State,
     _3_2: param_slider::State,
+    _3_3: param_slider::State,
     _3_4: param_slider::State,
     _3_5: param_slider::State,
     _3_6: param_slider::State,
@@ -492,6 +550,7 @@ struct MatrixWidget {
     _4_1: param_slider::State,
     _4_2: param_slider::State,
     _4_3: param_slider::State,
+    _4_4: param_slider::State,
     _4_5: param_slider::State,
     _4_6: param_slider::State,
     _4_7: param_slider::State,
@@ -501,6 +560,7 @@ struct MatrixWidget {
     _5_2: param_slider::State,
     _5_3: param_slider::State,
     _5_4: param_slider::State,
+    _5_5: param_slider::State,
     _5_6: param_slider::State,
     _5_7: param_slider::State,
     _5_8: param_slider::State,
@@ -510,6 +570,7 @@ struct MatrixWidget {
     _6_3: param_slider::State,
     _6_4: param_slider::State,
     _6_5: param_slider::State,
+    _6_6: param_slider::State,
     _6_7: param_slider::State,
     _6_8: param_slider::State,
 
@@ -519,6 +580,7 @@ struct MatrixWidget {
     _7_4: param_slider::State,
     _7_5: param_slider::State,
     _7_6: param_slider::State,
+    _7_7: param_slider::State,
     _7_8: param_slider::State,
 
     _8_1: param_slider::State,
@@ -528,10 +590,20 @@ struct MatrixWidget {
     _8_5: param_slider::State,
     _8_6: param_slider::State,
     _8_7: param_slider::State,
+    _8_8: param_slider::State,
+
+    osc1_amp: param_slider::State,
+    osc2_amp: param_slider::State,
+    osc3_amp: param_slider::State,
+    osc4_amp: param_slider::State,
+    osc5_amp: param_slider::State,
+    osc6_amp: param_slider::State,
+    osc7_amp: param_slider::State,
+    osc8_amp: param_slider::State,
 }
 impl MatrixWidget {
     fn ui_matrix<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
-        let slider_width = 40;
+        let slider_width = 30;
         let slider_height = 14;
         let slider_font_size = 12;
         let spacing = 4;
@@ -582,7 +654,13 @@ impl MatrixWidget {
                             .horizontal_alignment(alignment::Horizontal::Center)
                             .vertical_alignment(alignment::Vertical::Center),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._1_1, &params.mod_osc1_by_osc1)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._1_2, &params.mod_osc1_by_osc2)
                             .width(slider_width.into())
@@ -651,7 +729,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._2_2, &params.mod_osc2_by_osc2)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._2_3, &params.mod_osc2_by_osc3)
                             .width(slider_width.into())
@@ -720,7 +804,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._3_3, &params.mod_osc3_by_osc3)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._3_4, &params.mod_osc3_by_osc4)
                             .width(slider_width.into())
@@ -789,7 +879,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._4_4, &params.mod_osc4_by_osc4)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._4_5, &params.mod_osc4_by_osc5)
                             .width(slider_width.into())
@@ -858,7 +954,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._5_5, &params.mod_osc5_by_osc5)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._5_6, &params.mod_osc5_by_osc6)
                             .width(slider_width.into())
@@ -927,7 +1029,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._6_6, &params.mod_osc6_by_osc6)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._6_7, &params.mod_osc6_by_osc7)
                             .width(slider_width.into())
@@ -996,7 +1104,13 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into()))
+                    .push(
+                        ParamSlider::new(&mut self._7_7, &params.mod_osc7_by_osc7)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
                     .push(
                         ParamSlider::new(&mut self._7_8, &params.mod_osc7_by_osc8)
                             .width(slider_width.into())
@@ -1065,7 +1179,81 @@ impl MatrixWidget {
                             .text_size(slider_font_size)
                             .map(Message::ParamUpdate),
                     )
-                    .push(Space::new(slider_width.into(), slider_height.into())),
+                    .push(
+                        ParamSlider::new(&mut self._8_8, &params.mod_osc8_by_osc8)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    ),
+            )
+            .push(
+                Row::new()
+                    .spacing(spacing)
+                    .push(
+                        Text::new("Out".to_string())
+                            .size(14)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .vertical_alignment(alignment::Vertical::Center),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc1_amp, &params.osc1_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc2_amp, &params.osc2_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc3_amp, &params.osc3_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc4_amp, &params.osc4_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc5_amp, &params.osc5_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc6_amp, &params.osc6_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc7_amp, &params.osc7_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    )
+                    .push(
+                        ParamSlider::new(&mut self.osc8_amp, &params.osc8_params.amp)
+                            .width(slider_width.into())
+                            .height(slider_height.into())
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                    ),
             )
     }
 }
@@ -1094,7 +1282,7 @@ impl FilterWidget {
             // .push(Space::with_height(20.into()))
             .push(
                 Text::new("Filter")
-                    .height(16.into())
+                    .size(18)
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .font(assets::NOTO_SANS_BOLD),
             )
@@ -1104,12 +1292,7 @@ impl FilterWidget {
                     .push(
                         Column::new()
                             .max_width(90)
-                            .push(
-                                Text::new("Enabled")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Enabled").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_enabled_slider_state,
@@ -1120,12 +1303,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Type")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Type").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_type_slider_state,
@@ -1136,12 +1314,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Cutoff")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Cutoff").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_cutoff_slider_state,
@@ -1152,12 +1325,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Resonance")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Resonance").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_resonance_slider_state,
@@ -1168,12 +1336,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Keytrack")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Keytrack").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_keytrack_slider_state,
@@ -1185,14 +1348,10 @@ impl FilterWidget {
                                 .map(Message::ParamUpdate),
                             ),
                     )
+                    .push(Space::with_width(8.into()))
                     .push(
                         Column::new()
-                            .push(
-                                Text::new("Envelope Amt.")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Env. Amt.").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_envelope_amount_slider_state,
@@ -1203,12 +1362,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Filter Attack")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Fil. Attack").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_envelope_attack_slider_state,
@@ -1219,12 +1373,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Filter Decay")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Fil. Decay").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_envelope_decay_slider_state,
@@ -1235,12 +1384,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Filter Sustain")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Fil. Sustain").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_envelope_sustain_slider_state,
@@ -1251,12 +1395,7 @@ impl FilterWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             )
-                            .push(
-                                Text::new("Filter Release")
-                                    .size(font_size)
-                                    .width(Length::Fill)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
+                            .push(Text::new("Fil. Release").size(font_size))
                             .push(
                                 ParamSlider::new(
                                     &mut self.filter_envelope_release_slider_state,
@@ -1266,6 +1405,71 @@ impl FilterWidget {
                                 .width(slider_width)
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
+                            ),
+                    ),
+            )
+    }
+}
+
+#[derive(Default)]
+struct GlobalEnvelopeWidget {
+    attack: param_slider::State,
+    decay: param_slider::State,
+    sustain: param_slider::State,
+    release: param_slider::State,
+}
+impl GlobalEnvelopeWidget {
+    fn ui<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
+        let slider_height: Length = 14.into();
+        let slider_width: Length = 60.into();
+        let slider_font_size = 14;
+        let font_size = 14;
+        Column::new()
+            .max_width(200)
+            // .push(Space::with_height(20.into()))
+            .push(
+                Text::new("Amp Env.")
+                    .size(18)
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .font(assets::NOTO_SANS_BOLD),
+            )
+            .push(
+                Row::new()
+                    // .spacing(10)
+                    .push(
+                        Column::new()
+                            .max_width(90)
+                            .push(Text::new("Attack").size(font_size))
+                            .push(
+                                ParamSlider::new(&mut self.attack, &params.global_attack)
+                                    .height(slider_height)
+                                    .width(slider_width)
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Decay").size(font_size))
+                            .push(
+                                ParamSlider::new(&mut self.decay, &params.global_decay)
+                                    .height(slider_height)
+                                    .width(slider_width)
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Sustain").size(font_size))
+                            .push(
+                                ParamSlider::new(&mut self.sustain, &params.global_sustain)
+                                    .height(slider_height)
+                                    .width(slider_width)
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Release").size(font_size))
+                            .push(
+                                ParamSlider::new(&mut self.release, &params.global_release)
+                                    .height(slider_height)
+                                    .width(slider_width)
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
                             ),
                     ),
             )

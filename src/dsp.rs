@@ -1,5 +1,11 @@
 pub mod interpolation {
+    use wide::f32x8;
+
     pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
+        a.mul_add(1.0 - t, b * t)
+    }
+
+    pub fn lerpx8(a: f32x8, b: f32x8, t: f32x8) -> f32x8 {
         a.mul_add(1.0 - t, b * t)
     }
 
@@ -37,12 +43,17 @@ pub mod oscillators {
     use std::f32::consts::TAU;
 
     use enum_dispatch::enum_dispatch;
+    use itertools::izip;
 
     use super::interpolation::{catmull_rom, lerp};
 
     #[enum_dispatch]
     pub trait Oscillate {
         fn render(&mut self, delta: f32, output: &mut [f32]);
+    }
+
+    pub trait ParamOscillate {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]);
     }
 
     #[derive(Default, Clone)]
@@ -381,8 +392,134 @@ pub mod oscillators {
         CatmullRom(CatmullRomOscillator2),
     }
 
+    #[derive(Clone)]
+    pub struct PitchGen;
+    impl ParamOscillate for PitchGen {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]) {
+            for (sample, params) in output.into_iter().zip(izip!(params[0], params[1], params[2], params[3])) {
+                *sample += 2.0f32.powf(
+                    (params.0 + params.1 + params.2 / 100.0 - 69.0)
+                        / (12.0 / params.3),
+                ) * 440.0;
+            }
+        }
+    }
+
+    #[derive(Default, Clone)]
+    pub struct SineOscillatorParams {
+        phase: f32,
+    }
+    impl ParamOscillate for SineOscillatorParams {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]) {
+            for (sample, params) in output.into_iter().zip(izip!(params[0], params[1], params[2], params[3])) {
+                let delta = 2.0f32.powf(
+                    (params.0 + params.1 + params.2 / 100.0 - 69.0)
+                        / (12.0 / params.3),
+                ) * 440.0;
+                self.phase += delta;
+                if self.phase >= 1.0 {
+                    self.phase -= 1.0;
+                }
+                *sample += (self.phase * TAU).sin();
+            }
+        }
+    }
+
+    #[derive(Default, Clone)]
+    pub struct SineOscillatorParams2 {
+        phase: f32,
+    }
+    impl ParamOscillate for SineOscillatorParams2 {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]) {
+            let delta = 2.0f32.powf(
+                (params[0][0] + params[0][1] + params[1][2] / 100.0 - 69.0)
+                    / (12.0 / params[1][3]),
+            ) * 440.0;
+            for sample in output.into_iter() {
+                self.phase += delta;
+                if self.phase >= 1.0 {
+                    self.phase -= 1.0;
+                }
+                *sample += (self.phase * TAU).sin();
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct Pow2Table {
+        data: Vec<f32>
+    }
+    impl Pow2Table {
+        pub fn new() -> Self {
+            let len = 2usize.pow(16);
+            let mut data = Vec::with_capacity(len);
+            for i in 0..len {
+                data.push(lerp(-1.0, 1.0, i as f32 / len as f32));
+            }
+            Self {
+                data
+            }
+        }
+        pub fn look_up(&self, x: f32) -> f32 {
+            0.0
+        }
+    }
+    impl Default for Pow2Table {
+        fn default() -> Self {
+        Self::new()
+    }
+    }
+
+    #[derive(Default, Clone)]
+    pub struct SineOscillatorParams3 {
+        phase: f32,
+        table: Pow2Table,
+    }
+    impl ParamOscillate for SineOscillatorParams3 {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]) {
+            let delta = 2.0f32.powf(
+                (params[0][0] + params[0][1] + params[1][2] / 100.0 - 69.0)
+                    / (12.0 / params[1][3]),
+            ) * 440.0;
+            for sample in output.into_iter() {
+                self.phase += delta;
+                if self.phase >= 1.0 {
+                    self.phase -= 1.0;
+                }
+                *sample += (self.phase * TAU).sin();
+            }
+        }
+    }
+
+    #[derive(Default, Clone)]
+    pub struct PmOscillatorParams {
+        phase: f32,
+        pm_depth: f32,
+    }
+    impl ParamOscillate for PmOscillatorParams {
+        fn render(&mut self, params: [&[f32]; 16], output: &mut [f32]) {
+            let delta = 2.0f32.powf(
+                (params[0][0] + params[0][1] + params[1][2] / 100.0 - 69.0)
+                    / (12.0 / params[1][3]),
+            ) * 440.0;
+            for (sample, pm) in output.into_iter().zip(params[1]) {
+                self.phase += delta;
+                if self.phase >= 1.0 {
+                    self.phase -= 1.0;
+                }
+                *sample += (self.phase * TAU + pm * self.pm_depth).sin();
+            }
+        }
+    }
+
     mod test {
         use std::time::Instant;
+        fn ramp_up(mult: f32) -> Vec<f32> {
+            (0..44100*5).map(|x| x as f32 / 44100.0 * mult).collect()
+        }
+        fn ramp_down(mult: f32) -> Vec<f32> {
+            (0..44100*5).map(|x| x as f32 / 44100.0 * mult).collect()
+        }
 
         use super::*;
         fn benchmark(mut osc: impl Oscillate) -> f32 {
@@ -418,6 +555,46 @@ pub mod oscillators {
             let mut samples: Vec<f32> = Vec::with_capacity(10);
             for _ in 0..5 {
                 samples.push(benchmark_samples(osc.clone()));
+            }
+            let len = samples.len() as f32;
+            samples.into_iter().sum::<f32>() / len
+        }
+        fn benchmark_samples_params(mut osc: impl ParamOscillate) -> f32 {
+            let mut buffer = [0.0f32; 44100 * 5];
+            let vectors = [
+                ramp_up(8.0),
+                ramp_down(4.0),
+                ramp_up(8.0),
+                ramp_down(4.0),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ];
+            let params: [&[f32]; 16] = [
+                &vectors[0], &vectors[1], &vectors[2], &vectors[3], &vectors[4], &vectors[5], &vectors[6], &vectors[7], &vectors[8], &vectors[9], &vectors[10], &vectors[11], &vectors[12], &vectors[13], &vectors[14], &vectors[15]
+            ];
+            let now = Instant::now();
+            for _ in 0..(32 * 8) {
+                osc.render(params.clone(), &mut buffer);
+            }
+            let time = now.elapsed().as_secs_f32();
+            // let vec2 = Vec::from(buffer);
+            // println!("took {time} to render {} samples", vec2.len());
+            time
+        }
+        fn multi_benchmark_params(osc: impl ParamOscillate + Clone) -> f32 {
+            let mut samples: Vec<f32> = Vec::with_capacity(10);
+            for _ in 0..5 {
+                samples.push(benchmark_samples_params(osc.clone()));
             }
             let len = samples.len() as f32;
             samples.into_iter().sum::<f32>() / len
@@ -466,6 +643,23 @@ pub mod oscillators {
             println!("MetaOscillator::CatmullRom took {} to render", multi_benchmark(osc));
             osc = MetaOscillator::Square(SquareOscillator::default());
             println!("MetaOscillator::Square took {} to render", multi_benchmark(osc));
+        }
+        #[test]
+        fn benchmark_params() {
+            let ramp = ramp_up(8.0);
+            let ramp_down = ramp_down(8.0);
+            let osc1 = SineOscillator::default();
+            println!("SineOscillator took {} to render", multi_benchmark(osc1));
+            let osc2 = SineOscillator2::default();
+            println!("SineOscillator2 took {} to render", multi_benchmark(osc2));
+            let osc = PitchGen;
+            println!("PitchGen took {} to render", multi_benchmark_params(osc));
+            let osc = SineOscillatorParams::default();
+            println!("SineOscillatorParams took {} to render", multi_benchmark_params(osc));
+            let osc = SineOscillatorParams2::default();
+            println!("SineOscillatorParams2 took {} to render", multi_benchmark_params(osc));
+            let osc = PmOscillatorParams::default();
+            println!("PmOscillatorParams took {} to render", multi_benchmark_params(osc));
         }
     }
 }

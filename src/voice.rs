@@ -16,11 +16,16 @@ impl VoiceList {
     pub fn new() -> Self {
         Self { voices: [None; 32] }
     }
-    pub fn play(&mut self, params: &OscParamsBatch, pm_matrix: [f32x8; 8]) -> f32 {
+    pub fn play(
+        &mut self,
+        osc_params: &OscParamsBatch,
+        voice_params: &VoiceParams,
+        pm_matrix: [f32x8; 8],
+    ) -> f32 {
         self.voices
             .iter_mut()
             .filter_map(|voice| voice.as_mut())
-            .map(|v| v.play(params, pm_matrix))
+            .map(|v| v.play(osc_params, voice_params, pm_matrix))
             .sum()
     }
     pub fn add_voice(
@@ -59,19 +64,24 @@ impl VoiceList {
             }
         }
     }
-    pub fn release_voice(&mut self, note: u8, params: &OscParamsBatch) {
+    pub fn release_voice(
+        &mut self,
+        note: u8,
+        osc_params: &OscParamsBatch,
+        voice_params: &VoiceParams,
+    ) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
                 if voice.midi_id == note {
-                    voice.release(params);
+                    voice.release(osc_params, voice_params);
                 }
             }
         }
     }
-    pub fn remove_voices(&mut self, params: &OscParamsBatch) {
+    pub fn remove_voices(&mut self, osc_params: &OscParamsBatch, voice_params: &VoiceParams) {
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
-                if voice.is_done(params) {
+                if voice.is_done(osc_params, voice_params) {
                     *slot = None;
                 }
             }
@@ -100,10 +110,16 @@ pub struct Voice {
     filter: Option<SvfSimper>,
     time: u32,
     released_time: Option<u32>,
-    release_level: f32,
+    amp_release_level: f32,
+    filter_release_level: f32,
 }
 impl Voice {
-    pub fn play(&mut self, params: &OscParamsBatch, pm_matrix: [f32x8; 8]) -> f32 {
+    pub fn play(
+        &mut self,
+        params: &OscParamsBatch,
+        voice_params: &VoiceParams,
+        pm_matrix: [f32x8; 8],
+    ) -> f32 {
         self.time += 1;
         let matrix: [f32; 8] =
             array::from_fn(|i| (pm_matrix[i] * self.oscillators.previous()).reduce_add());
@@ -111,11 +127,11 @@ impl Voice {
             .oscillators
             .step_with_envelope(params, f32x8::from(matrix))
             .reduce_add();
-        if let Some(filter) = self.filter.as_mut() {
+        (if let Some(filter) = self.filter.as_mut() {
             filter.process(out)
         } else {
             out
-        }
+        }) * self.calc_amp_envelope(voice_params)
     }
     pub fn new(
         midi_id: u8,
@@ -149,21 +165,35 @@ impl Voice {
             },
             time: 0,
             released_time: None,
-            release_level: 0.0,
+            amp_release_level: 0.0,
+            filter_release_level: 0.0,
         }
     }
-    pub fn release(&mut self, params: &OscParamsBatch) {
+    pub fn release(&mut self, params: &OscParamsBatch, voice_params: &VoiceParams) {
+        self.amp_release_level = self.calc_amp_envelope(voice_params);
         self.oscillators.release(params);
         self.released_time = Some(self.time);
     }
     pub fn is_released(&self) -> bool {
         self.released_time.is_some()
     }
-    pub fn is_done(&mut self, params: &OscParamsBatch) -> bool {
-        self.oscillators.is_done(params)
+    fn time_since_release(&self) -> Option<u32> {
+        if let Some(release_time) = self.released_time {
+            Some(self.time - release_time)
+        } else {
+            None
+        }
     }
-    pub fn block_update(&mut self, params: &OscParamsBatch, voice_params: VoiceParams) {
-        self.oscillators.update_pitch(params);
+    pub fn is_done(&mut self, osc_params: &OscParamsBatch, voice_params: &VoiceParams) -> bool {
+        self.oscillators.is_done(osc_params)
+            || if let Some(released_time) = self.time_since_release() {
+                (released_time as f32 / voice_params.sample_rate) >= voice_params.global_release
+            } else {
+                false
+            }
+    }
+    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
+        self.oscillators.update_pitch(osc_params);
     }
     pub fn sample_update(&mut self, _params: &OscParamsBatch, voice_params: VoiceParams) {
         if voice_params.filter_enabled {
@@ -187,13 +217,31 @@ impl Voice {
             self.filter = None
         }
     }
+    fn calc_amp_envelope(&self, voice_params: &VoiceParams) -> f32 {
+        if let Some(released_time) = self.released_time {
+            release_envelope(
+                voice_params.sample_rate,
+                self.time - released_time,
+                voice_params.global_release,
+                self.amp_release_level,
+            )
+        } else {
+            envelope(
+                voice_params.sample_rate,
+                self.time,
+                voice_params.global_attack,
+                voice_params.global_decay,
+                voice_params.global_sustain,
+            )
+        }
+    }
     fn calc_filter_envelope(&self, voice_params: &VoiceParams) -> f32 {
         if let Some(released_time) = self.released_time {
             release_envelope(
                 voice_params.sample_rate,
                 self.time - released_time,
                 voice_params.filter_release,
-                self.release_level,
+                self.filter_release_level,
             )
         } else {
             envelope(
@@ -226,6 +274,10 @@ pub struct VoiceParams {
     pub filter_sustain: f32,
     pub filter_release: f32,
     pub filter_keytrack: f32,
+    pub global_attack: f32,
+    pub global_decay: f32,
+    pub global_sustain: f32,
+    pub global_release: f32,
 }
 
 #[derive(Debug, Clone, Copy)]

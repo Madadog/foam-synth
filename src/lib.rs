@@ -120,7 +120,7 @@ impl Plugin for SynthPlugin {
         let osc_params = OscParamsBatch::from(osc_params);
         let mut pm_matrix = [
             f32x8::from([
-                0.0,
+                self.params.mod_osc1_by_osc1.value(),
                 self.params.mod_osc1_by_osc2.value(),
                 self.params.mod_osc1_by_osc3.value(),
                 self.params.mod_osc1_by_osc4.value(),
@@ -128,10 +128,10 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc1_by_osc6.value(),
                 self.params.mod_osc1_by_osc7.value(),
                 self.params.mod_osc1_by_osc8.value(),
-            ]),
-            f32x8::from([
+                ]),
+                f32x8::from([
                 self.params.mod_osc2_by_osc1.value(),
-                0.0,
+                self.params.mod_osc2_by_osc2.value(),
                 self.params.mod_osc2_by_osc3.value(),
                 self.params.mod_osc2_by_osc4.value(),
                 self.params.mod_osc2_by_osc5.value(),
@@ -142,7 +142,7 @@ impl Plugin for SynthPlugin {
             f32x8::from([
                 self.params.mod_osc3_by_osc1.value(),
                 self.params.mod_osc3_by_osc2.value(),
-                0.0,
+                self.params.mod_osc3_by_osc3.value(),
                 self.params.mod_osc3_by_osc4.value(),
                 self.params.mod_osc3_by_osc5.value(),
                 self.params.mod_osc3_by_osc6.value(),
@@ -153,7 +153,7 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc4_by_osc1.value(),
                 self.params.mod_osc4_by_osc2.value(),
                 self.params.mod_osc4_by_osc3.value(),
-                0.0,
+                self.params.mod_osc4_by_osc4.value(),
                 self.params.mod_osc4_by_osc5.value(),
                 self.params.mod_osc4_by_osc6.value(),
                 self.params.mod_osc4_by_osc7.value(),
@@ -164,7 +164,7 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc5_by_osc2.value(),
                 self.params.mod_osc5_by_osc3.value(),
                 self.params.mod_osc5_by_osc4.value(),
-                0.0,
+                self.params.mod_osc5_by_osc5.value(),
                 self.params.mod_osc5_by_osc6.value(),
                 self.params.mod_osc5_by_osc7.value(),
                 self.params.mod_osc5_by_osc8.value(),
@@ -175,7 +175,7 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc6_by_osc3.value(),
                 self.params.mod_osc6_by_osc4.value(),
                 self.params.mod_osc6_by_osc5.value(),
-                0.0,
+                self.params.mod_osc6_by_osc6.value(),
                 self.params.mod_osc6_by_osc7.value(),
                 self.params.mod_osc6_by_osc8.value(),
             ]),
@@ -186,7 +186,7 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc7_by_osc4.value(),
                 self.params.mod_osc7_by_osc5.value(),
                 self.params.mod_osc7_by_osc6.value(),
-                0.0,
+                self.params.mod_osc7_by_osc7.value(),
                 self.params.mod_osc7_by_osc8.value(),
             ]),
             f32x8::from([
@@ -197,7 +197,7 @@ impl Plugin for SynthPlugin {
                 self.params.mod_osc8_by_osc5.value(),
                 self.params.mod_osc8_by_osc6.value(),
                 self.params.mod_osc8_by_osc7.value(),
-                0.0,
+                self.params.mod_osc8_by_osc8.value(),
             ]),
         ];
         pm_matrix.iter_mut().for_each(|x| *x = *x * 6.0);
@@ -213,6 +213,10 @@ impl Plugin for SynthPlugin {
             filter_sustain: self.params.filter_envelope_sustain.value(),
             filter_release: self.params.filter_envelope_release.value(),
             filter_keytrack: self.params.filter_keytrack.value(),
+            global_attack: self.params.global_attack.value(),
+            global_decay: self.params.global_decay.value(),
+            global_sustain: self.params.global_sustain.value(),
+            global_release: self.params.global_release.value(),
         };
         self.voices.block_update(&osc_params, voice_params);
         let block_size = buffer.samples();
@@ -233,7 +237,7 @@ impl Plugin for SynthPlugin {
                     }
                     NoteEvent::NoteOff { note, .. } => {
                         // println!("Note off at {}/{sample_id}: {}", event.timing(), note);
-                        self.voices.release_voice(note, &osc_params);
+                        self.voices.release_voice(note, &osc_params, &voice_params);
                     }
                     _ => (),
                 }
@@ -242,13 +246,13 @@ impl Plugin for SynthPlugin {
             }
             
             self.voices.sample_update(&osc_params, voice_params);
-            let output = self.voices.play(&osc_params, pm_matrix);
+            let output = self.voices.play(&osc_params, &voice_params, pm_matrix);
 
             for sample in channel_samples {
                 *sample = output * gain;
             }
         }
-        self.voices.remove_voices(&osc_params);
+        self.voices.remove_voices(&osc_params, &voice_params);
         ProcessStatus::KeepAlive
     }
 }
