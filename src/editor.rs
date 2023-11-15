@@ -17,7 +17,7 @@ mod envelope;
 mod param_slider;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
-    IcedState::from_size(1000, 650)
+    IcedState::from_size(1150, 650)
 }
 
 pub(crate) fn create(
@@ -291,6 +291,10 @@ struct OscillatorWidget {
     pub feedback: param_slider::State,
     pub velocity_sensitivity: param_slider::State,
     pub keyscaling: param_slider::State,
+    pub waveshaper: param_slider::State,
+    pub waveshaper_amount: param_slider::State,
+    pub phaseshaper: param_slider::State,
+    pub phaseshaper_amount: param_slider::State,
 }
 
 impl OscillatorWidget {
@@ -316,6 +320,10 @@ impl OscillatorWidget {
             feedback: Default::default(),
             velocity_sensitivity: Default::default(),
             keyscaling: Default::default(),
+            waveshaper: Default::default(),
+            waveshaper_amount: Default::default(),
+            phaseshaper: Default::default(),
+            phaseshaper_amount: Default::default(),
         }
     }
     fn content<'a>(&'a mut self, osc_params: &'a OscillatorParams) -> Column<Message> {
@@ -492,6 +500,60 @@ impl OscillatorWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             ),
+                    ).push(Space::with_width(8.into()))
+                    .push(
+                        Column::new()
+                            .push(Text::new("Waveshaper").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.waveshaper, &osc_params.waveshaper)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Wshp. Amt.").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.waveshaper_amount, &osc_params.waveshaper_amount)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Phaseshaper").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.phaseshaper, &osc_params.phaseshaper)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            .push(Text::new("Pshp. Amt.").size(param_font_size))
+                            .push(
+                                ParamSlider::new(&mut self.phaseshaper_amount, &osc_params.phaseshaper_amount)
+                                    .width(slider_width.into())
+                                    .height(slider_height.into())
+                                    .text_size(slider_font_size)
+                                    .map(Message::ParamUpdate),
+                            )
+                            // .push(Text::new("Keyscaling").size(param_font_size))
+                            // .push(
+                            //     ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
+                            //         .width(slider_width.into())
+                            //         .height(slider_height.into())
+                            //         .text_size(slider_font_size)
+                            //         .map(Message::ParamUpdate),
+                            // )
+                            // .push(Text::new("Rls. Level").size(param_font_size))
+                            // .push(
+                            //     ParamSlider::new(
+                            //         &mut self.release_level,
+                            //         &osc_params.release_level,
+                            //     )
+                            //     .width(slider_width.into())
+                            //     .height(slider_height.into())
+                            //     .text_size(slider_font_size)
+                            //     .map(Message::ParamUpdate),
+                            // ),
                     ),
             )
     }

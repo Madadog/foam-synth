@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::editor;
 use crate::svf_simper::FilterType;
+use crate::voice::Waveshaper;
 
 const ATTACK_DECAY_RANGE: FloatRange = FloatRange::Skewed {
     min: 0.0,
@@ -67,6 +68,14 @@ pub struct OscillatorParams {
     pub velocity_sensitivity: FloatParam,
     #[id = "keyscaling"]
     pub keyscaling: FloatParam,
+    #[id = "waveshaper"]
+    pub waveshaper: EnumParam<Waveshaper>,
+    #[id = "waveshaper_amount"]
+    pub waveshaper_amount: FloatParam,
+    #[id = "phaseshaper"]
+    pub phaseshaper: EnumParam<Waveshaper>,
+    #[id = "phaseshaper_amount"]
+    pub phaseshaper_amount: FloatParam,
 }
 impl OscillatorParams {
     pub fn new(index: usize, default_amp: f32) -> Self {
@@ -190,6 +199,32 @@ impl OscillatorParams {
                     max: 1.0,
                 },
             ),
+            waveshaper: EnumParam::new(
+                format!("Osc{} Waveshaper", index + 1),
+                Waveshaper::None,
+            ),
+            waveshaper_amount: FloatParam::new(
+                format!("Osc{} Waveshape Amount", index + 1),
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 100.0,
+                    factor: 0.2,
+                },
+            ),
+            phaseshaper: EnumParam::new(
+                format!("Osc{} Phaseshaper", index + 1),
+                Waveshaper::None,
+            ),
+            phaseshaper_amount: FloatParam::new(
+                format!("Osc{} Phaseshape Amount", index + 1),
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 100.0,
+                    factor: 0.2,
+                },
+            ),
         }
     }
     pub fn to_osc_params(&self, sample_rate: f32, octave_stretch: f32) -> crate::voice::OscParams {
@@ -214,6 +249,10 @@ impl OscillatorParams {
             velocity_sensitivity: self.velocity_sensitivity.value(),
             keyscaling: self.keyscaling.value(),
             octave_stretch: octave_stretch,
+            waveshaper: self.waveshaper.value(),
+            waveshaper_amount: self.waveshaper_amount.value(),
+            phaseshaper: self.phaseshaper.value(),
+            phaseshaper_amount: self.phaseshaper_amount.value(),
         }
     }
 }

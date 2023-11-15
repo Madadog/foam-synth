@@ -1,5 +1,7 @@
-use std::array;
+use std::{array, f32::consts::{TAU, PI}};
 
+use itertools::izip;
+use nih_plug::params::enums::Enum;
 // use wide::{f32x8, u32x8, CmpLe};
 use wide::*;
 
@@ -302,6 +304,10 @@ pub struct OscParams {
     pub velocity_sensitivity: f32,
     pub keyscaling: f32,
     pub octave_stretch: f32,
+    pub waveshaper: Waveshaper,
+    pub waveshaper_amount: f32,
+    pub phaseshaper: Waveshaper,
+    pub phaseshaper_amount: f32,
 }
 
 pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f32) -> f32 {
@@ -319,6 +325,38 @@ pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f
 pub fn release_envelope(sample_rate: f32, time: u32, release: f32, release_level: f32) -> f32 {
     let delta = time as f32 / sample_rate;
     release_level * (1.0 - (delta as f32 / release)).max(0.0).powi(2)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Enum)]
+pub enum Waveshaper {
+    None,
+    Power,
+    InversePower,
+    BiasedPower,
+    BiasedInversePower,
+    Sync,
+    Sine,
+    Quantize,
+}
+impl Waveshaper {
+    /// `x` should be between -1 and +1, `amount` should be between +1.0 and +100.0 
+    pub fn shape(&self, x: f32, amount: f32) -> f32 {
+        match self {
+            Waveshaper::None => x,
+            Waveshaper::Power => x.abs().powf(amount) * x.signum(),
+            Waveshaper::InversePower => x.abs().powf(1.0 / amount) * x.signum(),
+            Waveshaper::BiasedPower => (x * 0.5 + 0.5).powf(amount) * 2.0 - 1.0,
+            Waveshaper::BiasedInversePower => (x * 0.5 + 0.5).powf(1.0 / amount) * 2.0 - 1.0,
+            Waveshaper::Sync => {
+                ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
+            }
+            Waveshaper::Sine => (x * amount).sin(),
+            Waveshaper::Quantize => {
+                let amount = (101.0 - amount) * 0.5;
+                (x * 2.0f32.powf(amount)).round() / (2.0f32.powf(amount) + 1.0)
+        },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -343,6 +381,10 @@ pub struct OscParamsBatch {
     pub velocity_sensitivity: f32x8,
     pub keyscaling: f32x8,
     pub octave_stretch: f32x8,
+    pub waveshaper: [Waveshaper; 8],
+    pub waveshaper_amount: f32x8,
+    pub phaseshaper: [Waveshaper; 8],
+    pub phaseshaper_amount: f32x8,
 }
 macro_rules! aos_to_soa {
     // The `tt` (token tree) designator is used for
@@ -383,6 +425,10 @@ impl From<[OscParams; 8]> for OscParamsBatch {
             velocity_sensitivity: f32x8::from(aos_to_soa!(value, velocity_sensitivity)),
             keyscaling: f32x8::from(aos_to_soa!(value, keyscaling)),
             octave_stretch: f32x8::from(aos_to_soa!(value, octave_stretch)),
+            waveshaper: aos_to_soa!(value, waveshaper),
+            waveshaper_amount: f32x8::from(aos_to_soa!(value, waveshaper_amount)),
+            phaseshaper: aos_to_soa!(value, phaseshaper),
+            phaseshaper_amount: f32x8::from(aos_to_soa!(value, phaseshaper_amount)),
         }
     }
 }
@@ -512,23 +558,45 @@ impl OscillatorBatch {
         // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
         let prev = (self.previous_wave[0] + self.previous_wave[1]) / 2.0;
         // let feedback = if params.feedback.is_sign_negative() {
-        //     prev.powi(2)
-        // } else {
-        //     prev
-        // } * params.feedback.abs();
+            //     prev.powi(2)
+            // } else {
+                //     prev
+                // } * params.feedback.abs();
         let feedback = {
             let negative_feedback = (prev * prev) & params.feedback.cmp_lt(0.0);
             let positive_feedback = prev & params.feedback.cmp_ge(0.0);
             (negative_feedback + positive_feedback) * params.feedback.abs()
         };
-        let phase = self.phase + feedback + pm;
+        let phase = {
+            let phase = self.phase + feedback + pm;
+            let mut phase = (phase * 2.0 - 1.0).to_array();
+            let phaseshape_amount = params.phaseshaper_amount * 2.0 + 1.0;
+            for (phase, amount, waveshaper) in izip!(phase.iter_mut(), phaseshape_amount.as_array_ref(), &params.phaseshaper) {
+                while *phase >= 1.0 {
+                    *phase -= 1.0;
+                }
+                *phase = waveshaper.shape(*phase, *amount);
+            }
+            f32x8::from(phase)
+        };
+        // let phase = self_phase + feedback;
         self.previous_wave[1] = self.previous_wave[0];
-        self.previous_wave[0] = (phase * std::f32::consts::TAU + params.phase_offset).sin();
+        let out = {
+            let mut sine = (phase * std::f32::consts::TAU + params.phase_offset)
+                .sin()
+                .to_array();
+            let waveshape_amount = params.waveshaper_amount * 2.0 + 1.0;
+            for (sine, amount, waveshaper) in izip!(sine.iter_mut(), waveshape_amount.as_array_ref(), &params.waveshaper) {
+                *sine = waveshaper.shape(*sine, *amount);
+            }
+            f32x8::from(sine)
+        };
+        self.previous_wave[0] = out;
         self.add_phase(OscillatorBatch::calculate_delta(
             self.frequency,
             params.sample_rate,
         ));
-        self.previous_wave[0] * self.gain
+        out * self.gain
     }
     fn step_with_envelope(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.previous_output = self.step(params, pm) * self.envelope(params);
