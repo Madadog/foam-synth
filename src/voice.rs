@@ -340,7 +340,7 @@ pub enum Waveshaper {
 }
 impl Waveshaper {
     /// `x` should be between -1 and +1, `amount` should be between +1.0 and +100.0 
-    pub fn shape(&self, x: f32, amount: f32) -> f32 {
+    pub fn waveshape(&self, x: f32, amount: f32) -> f32 {
         match self {
             Waveshaper::None => x,
             Waveshaper::Power => x.abs().powf(amount) * x.signum(),
@@ -352,9 +352,28 @@ impl Waveshaper {
             }
             Waveshaper::Sine => (x * amount).sin(),
             Waveshaper::Quantize => {
-                let amount = (101.0 - amount) * 0.5;
+                let amount = (201.0 - amount) * 0.5;
                 (x * 2.0f32.powf(amount)).round() / (2.0f32.powf(amount) + 1.0)
-        },
+            },
+        }
+    }
+    /// `x` should be between 0 and +1, `amount` should be between +0.0 and +100.0 
+    pub fn phaseshape(&self, x: f32, amount: f32) -> f32 {
+        let amount = amount / 2.0 + 1.0;
+        match self {
+            Waveshaper::None => x,
+            Waveshaper::Power => ((x * 2.0 - 1.0).abs().powf(amount) * (x * 2.0 - 1.0).signum() + 1.0) * 0.5,
+            Waveshaper::InversePower => ((x * 2.0 - 1.0).abs().powf(1.0 / amount) * (x * 2.0 - 1.0).signum() + 1.0) * 0.5,
+            Waveshaper::BiasedPower => x.powf(amount),
+            Waveshaper::BiasedInversePower => x.powf(1.0 / amount),
+            Waveshaper::Sync => {
+                (x * 0.999999 * amount) % 1.0
+            }
+            Waveshaper::Sine => (x * amount).sin(),
+            Waveshaper::Quantize => {
+                let amount = (51.0 - amount) * 0.5;
+                (x * 2.0f32.powf(amount)).round() / (2.0f32.powf(amount) + 1.0)
+            },
         }
     }
 }
@@ -569,13 +588,10 @@ impl OscillatorBatch {
         };
         let phase = {
             let phase = self.phase + feedback + pm;
-            let mut phase = (phase * 2.0 - 1.0).to_array();
-            let phaseshape_amount = params.phaseshaper_amount * 2.0 + 1.0;
+            let mut phase = phase.to_array();
+            let phaseshape_amount = params.phaseshaper_amount;
             for (phase, amount, waveshaper) in izip!(phase.iter_mut(), phaseshape_amount.as_array_ref(), &params.phaseshaper) {
-                while *phase >= 1.0 {
-                    *phase -= 1.0;
-                }
-                *phase = waveshaper.shape(*phase, *amount);
+                *phase = waveshaper.phaseshape(*phase % 1.0, *amount);
             }
             f32x8::from(phase)
         };
@@ -587,7 +603,7 @@ impl OscillatorBatch {
                 .to_array();
             let waveshape_amount = params.waveshaper_amount * 2.0 + 1.0;
             for (sine, amount, waveshaper) in izip!(sine.iter_mut(), waveshape_amount.as_array_ref(), &params.waveshaper) {
-                *sine = waveshaper.shape(*sine, *amount);
+                *sine = waveshaper.waveshape(*sine, *amount);
             }
             f32x8::from(sine)
         };
