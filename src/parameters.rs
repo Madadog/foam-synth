@@ -209,7 +209,7 @@ impl OscillatorParams {
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 100.0,
-                    factor: 0.2,
+                    factor: 0.5,
                 },
             ),
             phaseshaper: EnumParam::new(
@@ -222,7 +222,7 @@ impl OscillatorParams {
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 100.0,
-                    factor: 0.2,
+                    factor: 0.5,
                 },
             ),
         }

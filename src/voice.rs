@@ -1,4 +1,7 @@
-use std::{array, f32::consts::{TAU, PI}};
+use std::{
+    array,
+    f32::consts::{PI, TAU},
+};
 
 use itertools::izip;
 use nih_plug::params::enums::Enum;
@@ -7,7 +10,7 @@ use wide::*;
 
 use crate::{
     dsp::interpolation::{lerp, lerpx8},
-    svf_simper::{FilterType, SvfSimper},
+    svf_simper::{FilterType, SvfSimper, SvfSimperBatch},
 };
 
 pub struct VoiceList {
@@ -337,43 +340,120 @@ pub enum Waveshaper {
     Sync,
     Sine,
     Quantize,
+    HalfRectify,
+    FullRectify,
+    HardClip,
 }
 impl Waveshaper {
-    /// `x` should be between -1 and +1, `amount` should be between +1.0 and +100.0 
+    /// `x` should be between -1 and +1, `amount` should be between 0 and 1
     pub fn waveshape(&self, x: f32, amount: f32) -> f32 {
         match self {
             Waveshaper::None => x,
-            Waveshaper::Power => x.abs().powf(amount) * x.signum(),
-            Waveshaper::InversePower => x.abs().powf(1.0 / amount) * x.signum(),
-            Waveshaper::BiasedPower => (x * 0.5 + 0.5).powf(amount) * 2.0 - 1.0,
-            Waveshaper::BiasedInversePower => (x * 0.5 + 0.5).powf(1.0 / amount) * 2.0 - 1.0,
+            Waveshaper::Power => {
+                let amount = amount * 200.0 + 1.0;
+                x.abs().powf(amount) * x.signum()
+            },
+            Waveshaper::InversePower => {
+                let amount = amount * 20.0 + 1.0;
+                x.abs().powf(1.0 / amount) * x.signum()
+            },
+            Waveshaper::BiasedPower => {
+                let amount = amount * 400.0 + 1.0;
+                (x * 0.5 + 0.5).powf(amount) * 2.0 - 1.0
+            },
+            Waveshaper::BiasedInversePower => {
+                let amount = amount * 8.0 + 1.0;
+                (x * 0.5 + 0.5).powf(1.0 / amount) * 2.0 - 1.0
+            },
             Waveshaper::Sync => {
+                let amount = amount * 20.0 + 1.0;
                 ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
-            }
-            Waveshaper::Sine => (x * amount).sin(),
+            },
+            Waveshaper::Sine => {
+                let amount = amount * 100.0 + 1.0;
+                (x * amount).sin()
+            },
             Waveshaper::Quantize => {
-                let amount = (201.0 - amount) * 0.5;
-                (x * 2.0f32.powf(amount)).round() / (2.0f32.powf(amount) + 1.0)
+                let amount = 1.0 - amount;
+                let amount = (amount * amount) * 100.0 + 1.0;
+                (x * amount).round() / amount
+            }
+            Waveshaper::HalfRectify => {
+                x.max(-1.0 + amount)
+            },
+            Waveshaper::FullRectify => {
+                let amount = 1.0 - amount;
+                (x + amount).abs() - amount
+            },
+            Waveshaper::HardClip => {
+                x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount)
             },
         }
     }
-    /// `x` should be between 0 and +1, `amount` should be between +0.0 and +100.0 
+    /// `x` should be between 0 and +1, `amount` should be between 0 and 1
     pub fn phaseshape(&self, x: f32, amount: f32) -> f32 {
-        let amount = amount / 2.0 + 1.0;
         match self {
             Waveshaper::None => x,
-            Waveshaper::Power => ((x * 2.0 - 1.0).abs().powf(amount) * (x * 2.0 - 1.0).signum() + 1.0) * 0.5,
-            Waveshaper::InversePower => ((x * 2.0 - 1.0).abs().powf(1.0 / amount) * (x * 2.0 - 1.0).signum() + 1.0) * 0.5,
-            Waveshaper::BiasedPower => x.powf(amount),
-            Waveshaper::BiasedInversePower => x.powf(1.0 / amount),
-            Waveshaper::Sync => {
-                (x * 0.999999 * amount) % 1.0
+            Waveshaper::Power => {
+                let amount = amount * 50.0 + 1.0;
+                let bipolar = x * 2.0 - 1.0;
+                (bipolar.abs().powf(amount) * bipolar.signum() + 1.0) * 0.5
             }
+            Waveshaper::InversePower => {
+                let amount = amount * 50.0 + 1.0;
+                let bipolar = x * 2.0 - 1.0;
+                (bipolar.abs().powf(1.0 / amount) * bipolar.signum() + 1.0) * 0.5
+            }
+            Waveshaper::BiasedPower => {
+                let amount = amount * 50.0 + 1.0;
+                x.powf(amount)
+            },
+            Waveshaper::BiasedInversePower => {
+                let amount = amount * 50.0 + 1.0;
+                x.powf(1.0 / amount)
+            },
+            Waveshaper::Sync => {
+                let amount = amount * 50.0 + 1.0;
+                (x * 0.999999 * amount).fract()
+            },
+            Waveshaper::Sine => {
+                let amount = amount * 50.0 + 1.0;
+                (x * amount).sin()
+            },
+            Waveshaper::Quantize => {
+                let amount = (100.0 - amount) * 0.01;
+                let amount = (amount * amount) * 100.0 + 1.0;
+                (x * (amount + 1.0)).round() / amount
+            },
+            Waveshaper::HalfRectify => {
+                x.max(-1.0 + amount)
+            },
+            Waveshaper::FullRectify => {
+                let amount = 1.0 - amount;
+                (x + amount).abs() - amount
+            },
+            Waveshaper::HardClip => {
+                x.max(-1.0 + amount).min(1.0 - amount)
+            },
+        }
+    }
+    pub fn waveshape_batch(&self, x: f32x8, amount: f32x8) -> f32x8 {
+        match self {
+            Waveshaper::None => x,
+            Waveshaper::Power => x.abs().pow_f32x8(amount) ^ x.sign_bit(),
+            Waveshaper::InversePower => x.abs().pow_f32x8(1.0 / amount) ^ x.sign_bit(),
+            Waveshaper::BiasedPower => (x * 0.5 + 0.5).pow_f32x8(amount) * 2.0 - 1.0,
+            Waveshaper::BiasedInversePower => (x * 0.5 + 0.5).pow_f32x8(1.0 / amount) * 2.0 - 1.0,
+            Waveshaper::Sync => {
+                // ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
+                x
+            },
             Waveshaper::Sine => (x * amount).sin(),
             Waveshaper::Quantize => {
-                let amount = (51.0 - amount) * 0.5;
-                (x * 2.0f32.powf(amount)).round() / (2.0f32.powf(amount) + 1.0)
-            },
+                let amount = (201.0 - amount) * 0.5;
+                (x * f32x8::splat(2.0).pow_f32x8(amount)).round() / (f32x8::splat(2.0).pow_f32x8(amount) + 1.0)
+            }
+            _ => todo!(),
         }
     }
 }
@@ -577,10 +657,10 @@ impl OscillatorBatch {
         // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
         let prev = (self.previous_wave[0] + self.previous_wave[1]) / 2.0;
         // let feedback = if params.feedback.is_sign_negative() {
-            //     prev.powi(2)
-            // } else {
-                //     prev
-                // } * params.feedback.abs();
+        //     prev.powi(2)
+        // } else {
+        //     prev
+        // } * params.feedback.abs();
         let feedback = {
             let negative_feedback = (prev * prev) & params.feedback.cmp_lt(0.0);
             let positive_feedback = prev & params.feedback.cmp_ge(0.0);
@@ -589,9 +669,14 @@ impl OscillatorBatch {
         let phase = {
             let phase = self.phase + feedback + pm;
             let mut phase = phase.to_array();
-            let phaseshape_amount = params.phaseshaper_amount;
-            for (phase, amount, waveshaper) in izip!(phase.iter_mut(), phaseshape_amount.as_array_ref(), &params.phaseshaper) {
-                *phase = waveshaper.phaseshape(*phase % 1.0, *amount);
+            let phaseshape_amount = params.phaseshaper_amount * 0.01;
+            for (phase, amount, waveshaper) in izip!(
+                phase.iter_mut(),
+                phaseshape_amount.as_array_ref(),
+                &params.phaseshaper
+            ) {
+                let inner_phase = (phase.fract() + 1.0).fract();
+                *phase = waveshaper.phaseshape(inner_phase, *amount);
             }
             f32x8::from(phase)
         };
@@ -601,8 +686,12 @@ impl OscillatorBatch {
             let mut sine = (phase * std::f32::consts::TAU + params.phase_offset)
                 .sin()
                 .to_array();
-            let waveshape_amount = params.waveshaper_amount * 2.0 + 1.0;
-            for (sine, amount, waveshaper) in izip!(sine.iter_mut(), waveshape_amount.as_array_ref(), &params.waveshaper) {
+            let waveshape_amount = params.waveshaper_amount * 0.01;
+            for (sine, amount, waveshaper) in izip!(
+                sine.iter_mut(),
+                waveshape_amount.as_array_ref(),
+                &params.waveshaper
+            ) {
                 *sine = waveshaper.waveshape(*sine, *amount);
             }
             f32x8::from(sine)
@@ -657,5 +746,158 @@ impl OscillatorBatch {
     }
     fn previous(&self) -> f32x8 {
         self.previous_output * self.gain
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// Generates a sawtooth from 0.0 to 1.0 at its set frequency
+pub struct PhaseGenerator {
+    pub frequency: f32x8,
+    pub phase: f32x8,
+}
+
+impl PhaseGenerator {
+    fn new(midi_id: u8, params: &OscParamsBatch, velocity: f32) -> Self {
+        let frequency = OscillatorBatch::get_pitch(midi_id, params);
+        Self {
+            frequency,
+            phase: f32x8::splat(0.0),
+        }
+    }
+    fn calculate_delta(frequency: f32x8, sample_rate: f32x8) -> f32x8 {
+        frequency / sample_rate
+    }
+    fn add_phase(&mut self, phase_delta: f32x8) {
+        self.phase += phase_delta;
+        self.phase -= f32x8::splat(1.0) & self.phase.cmp_ge(1.0);
+    }
+    fn update_pitch(&mut self, params: &OscParamsBatch, midi_id: u8) {
+        self.frequency = OscillatorBatch::get_pitch(midi_id, params);
+    }
+    fn step(&mut self, sample_rate: f32x8) -> f32x8 {
+        let out = self.phase;
+        self.add_phase(Self::calculate_delta(self.frequency, sample_rate));
+        out
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct SineGenerator;
+impl SineGenerator {
+    pub fn calculate_sine(&mut self, phase: f32x8) -> f32x8 {
+        (phase * std::f32::consts::TAU).sin()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct DahdsrEnvelope {
+    pub release_start_level: f32x8,
+}
+impl DahdsrEnvelope {
+    fn envelope(&self, params: &OscParamsBatch, time: f32x8, release_time: f32x8) -> f32x8 {
+        time.cmp_ge(release_time)
+            & Self::release_envelope(
+                release_time / params.sample_rate,
+                params.release,
+                self.release_start_level,
+                params.release_level,
+                f32x8::splat(2.0),
+            ) + time.cmp_lt(release_time)
+            & Self::ads_envelope(
+                time / params.sample_rate,
+                params.delay,
+                params.attack_level,
+                params.attack,
+                f32x8::splat(1.0),
+                params.hold,
+                params.decay,
+                f32x8::splat(2.0),
+                params.sustain,
+            )
+    }
+    fn ads_envelope(
+        seconds: f32x8,
+        delay: f32x8,
+        attack_level: f32x8,
+        attack_time: f32x8,
+        attack_slope: f32x8,
+        hold_time: f32x8,
+        decay_time: f32x8,
+        decay_slope: f32x8,
+        sustain_level: f32x8,
+    ) -> f32x8 {
+        let attack_level = lerpx8(
+            attack_level,
+            f32x8::splat(1.0),
+            ((seconds - delay).fast_max(0.0.into()) / attack_time).pow_f32x8(attack_slope),
+        ) & seconds.cmp_lt(delay + attack_time);
+        let hold_level = f32x8::splat(1.0)
+            & seconds.cmp_lt(delay + attack_time + hold_time)
+            & seconds.cmp_ge(delay + attack_time);
+        let decay_level = ((1.0 - ((seconds - delay - attack_time - hold_time) / decay_time))
+            .pow_f32x8(decay_slope)
+            * (1.0 - sustain_level)
+            + sustain_level)
+            & seconds.cmp_lt(delay + attack_time + hold_time + decay_time)
+            & seconds.cmp_ge(delay + attack_time + hold_time);
+        let sustain = sustain_level & seconds.cmp_ge(delay + attack_time + hold_time + decay_time);
+        (attack_level + hold_level + decay_level + sustain).fast_max(0.0.into())
+    }
+
+    fn release_envelope(
+        seconds: f32x8,
+        release_time: f32x8,
+        release_start_level: f32x8,
+        release_end_level: f32x8,
+        slope_power: f32x8,
+    ) -> f32x8 {
+        lerpx8(
+            release_end_level,
+            release_start_level,
+            (1.0 - seconds / release_time)
+                .fast_max(0.0.into())
+                .fast_min(1.0.into())
+                .pow_f32x8(slope_power),
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+/// SIMD acceleration attempt 2: vectorise voices instead of oscillators, so
+/// we can accelerate the waveshapers.
+pub struct PolyFoam {
+    voice_mask: i32x8,
+    voice_id: i32x8,
+    time: i32x8,
+    release_time: i32x8,
+
+    phases: [PhaseGenerator; 8],
+    phaseshapers: [Waveshaper; 8],
+    waves: [SineGenerator; 8],
+    waveshapers: [Waveshaper; 8],
+    oscillator_envelopes: [DahdsrEnvelope; 8],
+    last_oscillator_output: f32x8,
+
+    filter: SvfSimperBatch,
+    filter_envelope: DahdsrEnvelope,
+    global_envelope: DahdsrEnvelope,
+}
+impl PolyFoam {
+    pub fn step_oscillators(&mut self, params: OscParamsBatch) -> f32x8 {
+        for (phase_gen, phaseshaper, wave, waveshaper, envelope) in izip!(
+            self.phases.iter_mut(),
+            self.phaseshapers.iter_mut(),
+            self.waves.iter_mut(),
+            self.waveshapers.iter_mut(),
+            self.oscillator_envelopes.iter_mut()
+        ) {
+            let phase = phase_gen.step(params.sample_rate);
+            let phase = phaseshaper.waveshape_batch(phase, params.phaseshaper_amount);
+            let wave = wave.calculate_sine(phase);
+            let wave = waveshaper.waveshape_batch(wave, params.waveshaper_amount);
+            let envelope = envelope.envelope(&params, self.time.round_float(), self.release_time.round_float());
+            self.last_oscillator_output = wave * envelope;
+        }
+        self.last_oscillator_output
     }
 }

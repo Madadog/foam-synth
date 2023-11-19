@@ -19,6 +19,9 @@ mod param_slider;
 pub(crate) fn default_state() -> Arc<IcedState> {
     IcedState::from_size(1150, 650)
 }
+pub(crate) fn editor_state_with_scale(scale: f32) -> Arc<IcedState> {
+    IcedState::from_size((1150 as f32 * scale) as u32, (650 as f32 * scale) as u32)
+}
 
 pub(crate) fn create(
     params: Arc<SynthPluginParams>,
