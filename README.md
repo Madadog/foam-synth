@@ -1,11 +1,11 @@
 # Foam
-![Screenshot of UI](gui_v1.png)
+![Screenshot of UI](gui_v2.png)
 
 8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats. Oscillator generation and modulation is SIMD accelerated (via [wide](https://github.com/lokathor/wide)).
 
 Open source under GPLv3.
 
-In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update. Also, the CLAP version has not been tested yet (though it should still work, file an issue if it doesn't!)
+In development, control ranges and such may change between versions, potentially breaking your presets/saved projects on update.
 
 Downloads [available at the releases page](https://github.com/Madadog/foam-synth/releases).
 
@@ -29,11 +29,11 @@ There are 8 feedback-capable sine oscillators, each with independent amplitude e
     * **Velocity Sensitivity:** How much MIDI velocity affects oscillator volume.
     * **Keyscaling:** How oscillator volume decreases/increases as pitch rises/falls.
 
-The oscillators modulate each other via a 8x7 matrix, where every oscillator is connected to every other one (excluding itself, since feedback is a separate control with a greater range). It is possible to create cross-oscillator feedback loops (e.g. Osc1 and Osc2 both modulate each other) but they don't typically sound that good (not that I'm stopping you). The matrix is implemented by enforcing a 1-sample delay between oscillators.
+The oscillators modulate each other via a 8x8 matrix, where every oscillator is connected to every other one. It is possible to create cross-oscillator feedback loops (e.g. Osc1 and Osc2 both modulate each other) but they don't typically sound that good (not that I'm stopping you). The matrix is implemented by enforcing a 1-sample delay between oscillators.
 
 There is also a polyphonic multimode filter (Simper SVF), controllable via an ADSR envelope.
 
-Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a classic modular-style (exponential-pitch) FM synth, it can be set up in [Cardinal](https://github.com/DISTRHO/Cardinal) (though it sounds metallic and is difficult to tune).
+Technically this is a PM synth, but the terms PM/FM are often used interchangeably. If you want a modular-style (exponential-pitch) FM synth, it can be set up in [Cardinal](https://github.com/DISTRHO/Cardinal) or [Odin2](https://github.com/TheWaveWarden/odin2) (though it sounds metallic and is difficult to tune).
 
 ## Controls
 
@@ -45,6 +45,9 @@ Made for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed) clon
 
 * Build-your-own algorithm with the FM matrix
 * Feedback on every oscillator
+* DAHDSR envelopes
+* More operators
+* More wave types
 * 32-bit floating point for all audio
 
 ## Building
@@ -84,6 +87,8 @@ The following file/s are additionally available under the ISC license (indicated
     * Legato, portamento
     * Add noise source somewhere
     * Oversampling
+    * Bandlimited oscillator toggle
+        * AKA just turn it into a wavetable synth...
     * OPL2 waveform select
     * Allow picking keyscaling root key
     * Scala support?
