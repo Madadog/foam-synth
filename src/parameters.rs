@@ -27,6 +27,7 @@ const FM_RANGE: FloatRange = FloatRange::Skewed {
     max: 1.0,
     factor: 0.4,
 };
+const SMOOTH_TIME: f32 = 20.0;
 
 #[derive(Params)]
 pub struct OscillatorParams {
@@ -87,7 +88,8 @@ impl OscillatorParams {
                     min: 0.0,
                     max: 100.0,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
             coarse: FloatParam::new(
                 format!("Osc{} Coarse", index + 1),
                 0.0,
@@ -127,7 +129,8 @@ impl OscillatorParams {
                     factor: 0.4,
                     center: 0.0,
                 },
-            ).with_unit(" Hz"),
+            )
+            .with_unit(" Hz"),
             phase_offset: FloatParam::new(
                 format!("Osc{} Phase", index + 1),
                 0.0,
@@ -135,7 +138,8 @@ impl OscillatorParams {
                     min: -180.0,
                     max: 180.0,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
             phase_rand: FloatParam::new(
                 format!("Osc{} Phase Rand", index + 1),
                 0.0,
@@ -147,18 +151,12 @@ impl OscillatorParams {
             attack_level: FloatParam::new(
                 format!("Osc{} Atk. Level", index + 1),
                 0.0,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 1.0,
-                },
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             release_level: FloatParam::new(
                 format!("Osc{} Rls. Level", index + 1),
                 0.0,
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 1.0,
-                },
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             delay: FloatParam::new(format!("Osc{} Delay", index + 1), 0.0, ATTACK_DECAY_RANGE)
                 .with_unit(" s"),
@@ -182,7 +180,8 @@ impl OscillatorParams {
                     min: -1.0,
                     max: 1.0,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
             velocity_sensitivity: FloatParam::new(
                 format!("Osc{} Velocity Sens.", index + 1),
                 0.0,
@@ -199,10 +198,7 @@ impl OscillatorParams {
                     max: 1.0,
                 },
             ),
-            waveshaper: EnumParam::new(
-                format!("Osc{} Waveshaper", index + 1),
-                Waveshaper::None,
-            ),
+            waveshaper: EnumParam::new(format!("Osc{} Waveshaper", index + 1), Waveshaper::None),
             waveshaper_amount: FloatParam::new(
                 format!("Osc{} Waveshape Amount", index + 1),
                 0.0,
@@ -211,11 +207,9 @@ impl OscillatorParams {
                     max: 100.0,
                     factor: 0.5,
                 },
-            ),
-            phaseshaper: EnumParam::new(
-                format!("Osc{} Phaseshaper", index + 1),
-                Waveshaper::None,
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
+            phaseshaper: EnumParam::new(format!("Osc{} Phaseshaper", index + 1), Waveshaper::None),
             phaseshaper_amount: FloatParam::new(
                 format!("Osc{} Phaseshape Amount", index + 1),
                 0.0,
@@ -224,18 +218,19 @@ impl OscillatorParams {
                     max: 100.0,
                     factor: 0.5,
                 },
-            ),
+            )
+            .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
         }
     }
-    pub fn to_osc_params(&self, sample_rate: f32, octave_stretch: f32) -> crate::voice::OscParams {
+    pub fn to_osc_params(&self, sample_rate: f32, octave_stretch: f32, block_size: u32) -> crate::voice::OscParams {
         crate::voice::OscParams {
-            output_gain: self.amp.value() / 100.0,
-            sample_rate: sample_rate,
+            output_gain: self.amp.smoothed.next_step(block_size) / 100.0,
+            sample_rate,
             coarse: self.coarse.value(),
             fine: self.fine.value(),
             frequency_mult: self.freq_mult.value() / self.freq_div.value(),
             hz_detune: self.hz_detune.value(),
-            phase_offset: self.phase_offset.value() / 180.0 * PI,
+            phase_offset: self.phase_offset.smoothed.next_step(block_size) / 180.0 * PI,
             phase_rand: self.phase_rand.value(),
             attack_level: self.attack_level.value(),
             release_level: self.release_level.value(),
@@ -245,14 +240,17 @@ impl OscillatorParams {
             decay: self.decay.value(),
             sustain: self.sustain.value(),
             release: self.release.value(),
-            feedback: self.feedback.value().signum() * self.feedback.value().powi(2),
+            feedback: {
+                let feedback = self.feedback.smoothed.next_step(block_size);
+                feedback.signum() * feedback.powi(2)
+            },
             velocity_sensitivity: self.velocity_sensitivity.value(),
             keyscaling: self.keyscaling.value(),
-            octave_stretch: octave_stretch,
+            octave_stretch,
             waveshaper: self.waveshaper.value(),
-            waveshaper_amount: self.waveshaper_amount.value(),
+            waveshaper_amount: self.waveshaper_amount.smoothed.next_step(block_size),
             phaseshaper: self.phaseshaper.value(),
-            phaseshaper_amount: self.phaseshaper_amount.value(),
+            phaseshaper_amount: self.phaseshaper_amount.smoothed.next_step(block_size),
         }
     }
 }
@@ -368,7 +366,7 @@ pub struct SynthPluginParams {
     pub mod_osc6_by_osc7: FloatParam,
     #[id = "mod_osc6_by_osc8"]
     pub mod_osc6_by_osc8: FloatParam,
-    
+
     #[id = "mod_osc7_by_osc1"]
     pub mod_osc7_by_osc1: FloatParam,
     #[id = "mod_osc7_by_osc2"]
@@ -385,7 +383,7 @@ pub struct SynthPluginParams {
     pub mod_osc7_by_osc7: FloatParam,
     #[id = "mod_osc7_by_osc8"]
     pub mod_osc7_by_osc8: FloatParam,
-    
+
     #[id = "mod_osc8_by_osc1"]
     pub mod_osc8_by_osc1: FloatParam,
     #[id = "mod_osc8_by_osc2"]
@@ -402,7 +400,7 @@ pub struct SynthPluginParams {
     pub mod_osc8_by_osc7: FloatParam,
     #[id = "mod_osc8_by_osc8"]
     pub mod_osc8_by_osc8: FloatParam,
-    
+
     #[nested(group = "osc1", id_prefix = "osc1")]
     pub osc1_params: OscillatorParams,
     #[nested(group = "osc2", id_prefix = "osc2")]
@@ -504,7 +502,7 @@ impl Default for SynthPluginParams {
             mod_osc2_by_osc6: FloatParam::new("Mod Osc2 by Osc6", 0.0, FM_RANGE),
             mod_osc2_by_osc7: FloatParam::new("Mod Osc2 by Osc7", 0.0, FM_RANGE),
             mod_osc2_by_osc8: FloatParam::new("Mod Osc2 by Osc8", 0.0, FM_RANGE),
-            
+
             mod_osc3_by_osc1: FloatParam::new("Mod Osc3 by Osc1", 0.0, FM_RANGE),
             mod_osc3_by_osc2: FloatParam::new("Mod Osc3 by Osc2", 0.0, FM_RANGE),
             mod_osc3_by_osc3: FloatParam::new("Mod Osc3 by Osc3", 0.0, FM_RANGE),
@@ -602,16 +600,20 @@ impl Default for SynthPluginParams {
                     center: 0.0,
                 },
             ),
-            filter_envelope_attack: FloatParam::new("Filter Env. Attack", 0.0, ATTACK_DECAY_RANGE).with_unit(" s"),
-            filter_envelope_decay: FloatParam::new("Filter Env. Decay", 0.5, ATTACK_DECAY_RANGE).with_unit(" s"),
+            filter_envelope_attack: FloatParam::new("Filter Env. Attack", 0.0, ATTACK_DECAY_RANGE)
+                .with_unit(" s"),
+            filter_envelope_decay: FloatParam::new("Filter Env. Decay", 0.5, ATTACK_DECAY_RANGE)
+                .with_unit(" s"),
             filter_envelope_sustain: FloatParam::new(
                 "Filter Env. Sustain",
                 0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
-            filter_envelope_release: FloatParam::new("Filter Env. Release", 0.05, RELEASE_RANGE).with_unit(" s"),
+            filter_envelope_release: FloatParam::new("Filter Env. Release", 0.05, RELEASE_RANGE)
+                .with_unit(" s"),
 
-            global_attack: FloatParam::new("Global Attack", 0.0, ATTACK_DECAY_RANGE).with_unit(" s"),
+            global_attack: FloatParam::new("Global Attack", 0.0, ATTACK_DECAY_RANGE)
+                .with_unit(" s"),
             global_decay: FloatParam::new("Global Decay", 0.5, ATTACK_DECAY_RANGE).with_unit(" s"),
             global_sustain: FloatParam::new(
                 "Global Sustain",

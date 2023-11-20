@@ -91,31 +91,32 @@ impl Plugin for SynthPlugin {
         context: &mut impl ProcessContext<Self>,
     ) -> ProcessStatus {
         let mut next_event = context.next_event();
+        let block_size = buffer.samples() as u32;
         let osc_params = [
             self.params
                 .osc1_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc2_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc3_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc4_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc5_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc6_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc7_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
             self.params
                 .osc8_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value()),
+                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
         ];
         let osc_params = OscParamsBatch::from(osc_params);
         let mut pm_matrix = [
@@ -219,7 +220,6 @@ impl Plugin for SynthPlugin {
             global_release: self.params.global_release.value(),
         };
         self.voices.block_update(&osc_params, voice_params);
-        let block_size = buffer.samples();
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
             let gain = self.params.gain.smoothed.next();
