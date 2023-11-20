@@ -6,12 +6,12 @@ use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
 use nih_plug_iced::*;
-use wide::f32x8;
 use std::default;
 use std::sync::Arc;
+use wide::f32x8;
 
 use crate::parameters::{OscillatorParams, SynthPluginParams};
-use crate::voice::{OscillatorBatch, OscParamsBatch, OscParams};
+use crate::voice::{OscParams, OscParamsBatch, OscillatorBatch};
 
 use self::param_slider::ParamSlider;
 
@@ -105,6 +105,8 @@ struct OscilloscopeWidget {
     oscillator: OscillatorBatch,
     osc_params: OscParamsBatch,
     osc_index: usize,
+    border: bool,
+    margin: f32,
 }
 impl OscilloscopeWidget {
     fn new(freq: f32, mut osc_params: OscParamsBatch, sample_rate: f32, osc_index: usize) -> Self {
@@ -115,6 +117,8 @@ impl OscilloscopeWidget {
             oscillator,
             osc_params,
             osc_index,
+            border: false,
+            margin: 0.1,
         }
     }
 }
@@ -124,26 +128,36 @@ impl canvas::Program<Message> for OscilloscopeWidget {
         let mut frame = canvas::Frame::new(bounds.size());
 
         let mut oscillator = self.oscillator.clone();
-        let points: Vec<(f32, f32)> = (0..100).map(|i| {
-            let x = i as f32 / 100.0;
-            let x = x * bounds.width;
-            let y = (oscillator.step(&self.osc_params, f32x8::splat(0.0)).as_array_ref()[self.osc_index] - 1.0).abs() / 2.0;
-            let y = y * bounds.height;
-            (x, y)
-        }).collect();
-        let lines = points.windows(2).map(|i| {
-            canvas::Path::line(
-                Point::new(i[0].0, i[0].1),
-                Point::new(i[1].0, i[1].1),
-            )
+        let mut points: Vec<Point> = (0..100)
+            .map(|i| {
+                let x = i as f32 / 100.0;
+                let x = x * bounds.width;
+                let y = (oscillator
+                    .step(&self.osc_params, f32x8::splat(0.0))
+                    .as_array_ref()[self.osc_index]
+                    - 1.0)
+                    .abs()
+                    / 2.0;
+                let y = y * (1.0 - self.margin) + self.margin * 0.5;
+                let y = y * bounds.height;
+                Point::new(x, y)
+            })
+            .collect();
+        points.push(Point::new(100.0, points[0].y));
+        let path = canvas::Path::new(|p| {
+            for i in points.windows(2) {
+                p.move_to(i[0]);
+                p.line_to(i[1]);
+            }
         });
 
-        for i in lines {
-            frame.stroke(&i, canvas::Stroke::default())
+        frame.stroke(&path, canvas::Stroke::default());
+        if self.border {
+            frame.stroke(
+                &canvas::Path::rectangle(Point::new(0.0, 0.0), Size::new(bounds.width, bounds.height)),
+                canvas::Stroke::default(),
+            );
         }
-
-        // And fill it with some color
-        // frame.fill(&circle, Color::BLACK);
 
         // Finally, we produce the geometry
         vec![frame.into_geometry()]
@@ -409,20 +423,24 @@ impl OscillatorWidget {
         Column::new()
             .push(
                 Row::new()
-                .push(
-                    Text::new(&self.name)
-                        .size(18)
-                        .horizontal_alignment(alignment::Horizontal::Center)
-                        .font(assets::NOTO_SANS_BOLD),
-                )
-                .push(Space::with_width(8.into()))
-                .push(
-                    {
+                    .push(
+                        Text::new(&self.name)
+                            .size(18)
+                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .font(assets::NOTO_SANS_BOLD),
+                    )
+                    .push(Space::with_width(8.into()))
+                    .push({
                         let mut params = [OscParams::default(); 8];
                         params[self.index] = osc_params.to_osc_params(100.0, 1.0, 0);
-                        Canvas::new(OscilloscopeWidget::new(1.0, params.into(), 100.0, self.index)).height(18.into())
-                    }
-                )
+                        Canvas::new(OscilloscopeWidget::new(
+                            1.0,
+                            params.into(),
+                            100.0,
+                            self.index,
+                        ))
+                        .height(18.into())
+                    }),
             )
             .push(
                 Row::new()
@@ -586,7 +604,8 @@ impl OscillatorWidget {
                                 .text_size(slider_font_size)
                                 .map(Message::ParamUpdate),
                             ),
-                    ).push(Space::with_width(8.into()))
+                    )
+                    .push(Space::with_width(8.into()))
                     .push(
                         Column::new()
                             .push(Text::new("Waveshaper").size(param_font_size))
@@ -599,11 +618,14 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Wshp. Amt.").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.waveshaper_amount, &osc_params.waveshaper_amount)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
+                                ParamSlider::new(
+                                    &mut self.waveshaper_amount,
+                                    &osc_params.waveshaper_amount,
+                                )
+                                .width(slider_width.into())
+                                .height(slider_height.into())
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
                             )
                             .push(Text::new("Phaseshaper").size(param_font_size))
                             .push(
@@ -615,31 +637,33 @@ impl OscillatorWidget {
                             )
                             .push(Text::new("Pshp. Amt.").size(param_font_size))
                             .push(
-                                ParamSlider::new(&mut self.phaseshaper_amount, &osc_params.phaseshaper_amount)
-                                    .width(slider_width.into())
-                                    .height(slider_height.into())
-                                    .text_size(slider_font_size)
-                                    .map(Message::ParamUpdate),
-                            )
-                            // .push(Text::new("Keyscaling").size(param_font_size))
-                            // .push(
-                            //     ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
-                            //         .width(slider_width.into())
-                            //         .height(slider_height.into())
-                            //         .text_size(slider_font_size)
-                            //         .map(Message::ParamUpdate),
-                            // )
-                            // .push(Text::new("Rls. Level").size(param_font_size))
-                            // .push(
-                            //     ParamSlider::new(
-                            //         &mut self.release_level,
-                            //         &osc_params.release_level,
-                            //     )
-                            //     .width(slider_width.into())
-                            //     .height(slider_height.into())
-                            //     .text_size(slider_font_size)
-                            //     .map(Message::ParamUpdate),
-                            // ),
+                                ParamSlider::new(
+                                    &mut self.phaseshaper_amount,
+                                    &osc_params.phaseshaper_amount,
+                                )
+                                .width(slider_width.into())
+                                .height(slider_height.into())
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                            ), // .push(Text::new("Keyscaling").size(param_font_size))
+                               // .push(
+                               //     ParamSlider::new(&mut self.keyscaling, &osc_params.keyscaling)
+                               //         .width(slider_width.into())
+                               //         .height(slider_height.into())
+                               //         .text_size(slider_font_size)
+                               //         .map(Message::ParamUpdate),
+                               // )
+                               // .push(Text::new("Rls. Level").size(param_font_size))
+                               // .push(
+                               //     ParamSlider::new(
+                               //         &mut self.release_level,
+                               //         &osc_params.release_level,
+                               //     )
+                               //     .width(slider_width.into())
+                               //     .height(slider_height.into())
+                               //     .text_size(slider_font_size)
+                               //     .map(Message::ParamUpdate),
+                               // ),
                     ),
             )
     }
