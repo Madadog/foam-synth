@@ -369,7 +369,7 @@ impl Waveshaper {
             },
             Waveshaper::Sync => {
                 let amount = amount * 20.0 + 1.0;
-                ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
+                (x * 0.999999 * amount).fract()
             },
             Waveshaper::Sine => {
                 let amount = amount * 100.0 + 1.0;
@@ -427,12 +427,12 @@ impl Waveshaper {
                 (x * amount).sin()
             },
             Waveshaper::Quantize => {
-                let amount = (100.0 - amount) * 0.01;
+                let amount = 1.0 - amount;
                 let amount = (amount * amount) * 100.0 + 1.0;
                 (x * (amount + 1.0)).round() / amount
             },
             Waveshaper::HalfRectify => {
-                (x*amount).min(1.0)
+                (x*(amount*50.0 + 1.0)).min(1.0)
             },
             Waveshaper::FullRectify => {
                 let amount = 1.0 - amount;
