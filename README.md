@@ -93,9 +93,11 @@ The following file/s are additionally available under the ISC license (indicated
 
 * GUI:
     * Add filter send to matrix
+    * Use relative ParamSlider for FloatParams, absolute for EnumParams
+    * Dropdown menus for EnumParams
     * Visualize envelopes & their settings
     * Dark theme
-    * Oscilloscope / spectrogram
+    * Global oscilloscope / spectrogram
     * Resizable GUI
 
 * Code:

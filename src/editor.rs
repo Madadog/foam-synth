@@ -113,6 +113,7 @@ impl OscilloscopeWidget {
         osc_params.sample_rate = f32x8::splat(sample_rate);
         let mut oscillator = OscillatorBatch::new(0, &osc_params, 1.0);
         oscillator.frequency = f32x8::splat(freq);
+        oscillator.gain = f32x8::splat(1.0);
         Self {
             oscillator,
             osc_params,
@@ -440,6 +441,7 @@ impl OscillatorWidget {
                             self.index,
                         ))
                         .height(18.into())
+                        .width(50.into())
                     }),
             )
             .push(
