@@ -73,24 +73,17 @@ The following file/s are additionally available under the ISC license (indicated
 
 * DSP:
     * Add panning
-    * Add envelope Delay and Hold
-    * Control for envelope final release level
     * Envelope slope controls?
     * Precalculate table for tuning approximation?
     * Add pitch bend control
-    * Add phase control
-    * Hertz-based detune
     * Add LFO and pitch envelope
-    * Make filter envelope independent of host block size
-    * Add global volume envelope
     * Toggle oscillators on/off
-    * Make filter keytracking actually work
     * Allow use of the filter in FM modulation
     * +/- FM modulation for all controls
     * RM modulation
-    * Oscillator sync
     * Legato, portamento
     * Add noise source somewhere
+    * Oversampling
     * OPL2 waveform select
     * Allow picking keyscaling root key
     * Scala support?
@@ -99,16 +92,17 @@ The following file/s are additionally available under the ISC license (indicated
         * Enforce a minimum (constant?) block size
 
 * GUI:
-    * Add feedback, amplitude & filter send to matrix
+    * Add filter send to matrix
     * Visualize envelopes & their settings
     * Dark theme
     * Oscilloscope / spectrogram
+    * Resizable GUI
 
 * Code:
     * Use more constants for GUI dimensions
+    * Clean up
 
 * Lofty Wishlist
-    * Oversampling
     * Oscillator wavetables
     * MSEG modulators
     * Modulation of all parameters
@@ -116,7 +110,6 @@ The following file/s are additionally available under the ISC license (indicated
     * Effects
     * FM from/to sample player oscillator
     * 2 filters, more filter types.
-    * Resizable GUI
     * Good presets
     * Add/remove oscillators
     

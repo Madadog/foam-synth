@@ -6,10 +6,12 @@ use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::IcedState;
 use nih_plug_iced::*;
+use wide::f32x8;
 use std::default;
 use std::sync::Arc;
 
 use crate::parameters::{OscillatorParams, SynthPluginParams};
+use crate::voice::{OscillatorBatch, OscParamsBatch, OscParams};
 
 use self::param_slider::ParamSlider;
 
@@ -98,11 +100,62 @@ impl canvas::Program<Message> for CanvasTest {
     }
 }
 
+#[derive(Debug, Clone)]
+struct OscilloscopeWidget {
+    oscillator: OscillatorBatch,
+    osc_params: OscParamsBatch,
+    osc_index: usize,
+}
+impl OscilloscopeWidget {
+    fn new(freq: f32, mut osc_params: OscParamsBatch, sample_rate: f32, osc_index: usize) -> Self {
+        osc_params.sample_rate = f32x8::splat(sample_rate);
+        let mut oscillator = OscillatorBatch::new(0, &osc_params, 1.0);
+        oscillator.frequency = f32x8::splat(freq);
+        Self {
+            oscillator,
+            osc_params,
+            osc_index,
+        }
+    }
+}
+impl canvas::Program<Message> for OscilloscopeWidget {
+    fn draw(&self, bounds: Rectangle, _cursor: canvas::Cursor) -> Vec<canvas::Geometry> {
+        // We prepare a new `Frame`
+        let mut frame = canvas::Frame::new(bounds.size());
+
+        let mut oscillator = self.oscillator.clone();
+        let points: Vec<(f32, f32)> = (0..100).map(|i| {
+            let x = i as f32 / 100.0;
+            let x = x * bounds.width;
+            let y = (oscillator.step(&self.osc_params, f32x8::splat(0.0)).as_array_ref()[self.osc_index] - 1.0).abs() / 2.0;
+            let y = y * bounds.height;
+            (x, y)
+        }).collect();
+        let lines = points.windows(2).map(|i| {
+            canvas::Path::line(
+                Point::new(i[0].0, i[0].1),
+                Point::new(i[1].0, i[1].1),
+            )
+        });
+
+        for i in lines {
+            frame.stroke(&i, canvas::Stroke::default())
+        }
+
+        // And fill it with some color
+        // frame.fill(&circle, Color::BLACK);
+
+        // Finally, we produce the geometry
+        vec![frame.into_geometry()]
+    }
+}
+
 struct SynthPluginEditor {
     params: Arc<SynthPluginParams>,
     context: Arc<dyn GuiContext>,
 
     gain_slider_state: param_slider::State,
+    global_coarse_slider_state: param_slider::State,
     octave_stretch_slider_state: param_slider::State,
     scrollable: widget::scrollable::State,
 
@@ -143,20 +196,21 @@ impl IcedEditor for SynthPluginEditor {
             context,
 
             gain_slider_state: Default::default(),
+            global_coarse_slider_state: Default::default(),
             octave_stretch_slider_state: Default::default(),
             scrollable: Default::default(),
 
             filter_params: Default::default(),
             global_envelope: Default::default(),
 
-            osc_params_1: OscillatorWidget::new("Osc 1"),
-            osc_params_2: OscillatorWidget::new("Osc 2"),
-            osc_params_3: OscillatorWidget::new("Osc 3"),
-            osc_params_4: OscillatorWidget::new("Osc 4"),
-            osc_params_5: OscillatorWidget::new("Osc 5"),
-            osc_params_6: OscillatorWidget::new("Osc 6"),
-            osc_params_7: OscillatorWidget::new("Osc 7"),
-            osc_params_8: OscillatorWidget::new("Osc 8"),
+            osc_params_1: OscillatorWidget::new(0),
+            osc_params_2: OscillatorWidget::new(1),
+            osc_params_3: OscillatorWidget::new(2),
+            osc_params_4: OscillatorWidget::new(3),
+            osc_params_5: OscillatorWidget::new(4),
+            osc_params_6: OscillatorWidget::new(5),
+            osc_params_7: OscillatorWidget::new(6),
+            osc_params_8: OscillatorWidget::new(7),
 
             // canvas: Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)),
             matrix: Default::default(),
@@ -193,7 +247,7 @@ impl IcedEditor for SynthPluginEditor {
                     .push(self.matrix.ui_matrix(&self.params))
                     .push(self.filter_params.ui(&self.params))
                     .push(self.global_envelope.ui(&self.params))
-                    .push(Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)))
+                    // .push(Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)))
                     .push(
                         title_bar()
                             .push(Space::with_height(10.into()))
@@ -209,6 +263,22 @@ impl IcedEditor for SynthPluginEditor {
                                     .height(20.into())
                                     .width(100.into())
                                     .map(Message::ParamUpdate),
+                            )
+                            .push(
+                                Text::new("Global Coarse")
+                                    .size(16)
+                                    .width(100.into())
+                                    .horizontal_alignment(alignment::Horizontal::Center)
+                                    .vertical_alignment(alignment::Vertical::Center),
+                            )
+                            .push(
+                                ParamSlider::new(
+                                    &mut self.global_coarse_slider_state,
+                                    &self.params.global_coarse,
+                                )
+                                .height(20.into())
+                                .width(100.into())
+                                .map(Message::ParamUpdate),
                             )
                             .push(
                                 Text::new("Octave Stretch")
@@ -274,7 +344,8 @@ impl IcedEditor for SynthPluginEditor {
 }
 
 struct OscillatorWidget {
-    pub name: &'static str,
+    pub index: usize,
+    pub name: String,
     pub amp: param_slider::State,
     pub coarse: param_slider::State,
     pub fine: param_slider::State,
@@ -301,9 +372,10 @@ struct OscillatorWidget {
 }
 
 impl OscillatorWidget {
-    fn new(name: &'static str) -> Self {
+    fn new(index: usize) -> Self {
         Self {
-            name,
+            index,
+            name: format!("Osc {}", index + 1),
             amp: Default::default(),
             coarse: Default::default(),
             fine: Default::default(),
@@ -336,10 +408,21 @@ impl OscillatorWidget {
         let slider_height = 14;
         Column::new()
             .push(
-                Text::new(self.name)
-                    .size(18)
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .font(assets::NOTO_SANS_BOLD),
+                Row::new()
+                .push(
+                    Text::new(&self.name)
+                        .size(18)
+                        .horizontal_alignment(alignment::Horizontal::Center)
+                        .font(assets::NOTO_SANS_BOLD),
+                )
+                .push(Space::with_width(8.into()))
+                .push(
+                    {
+                        let mut params = [OscParams::default(); 8];
+                        params[self.index] = osc_params.to_osc_params(100.0, 1.0, 0);
+                        Canvas::new(OscilloscopeWidget::new(1.0, params.into(), 100.0, self.index)).height(18.into())
+                    }
+                )
             )
             .push(
                 Row::new()

@@ -118,7 +118,10 @@ impl Plugin for SynthPlugin {
                 .osc8_params
                 .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
         ];
-        let osc_params = OscParamsBatch::from(osc_params);
+
+        let mut osc_params = OscParamsBatch::from(osc_params);
+        osc_params.coarse += f32x8::splat(self.params.global_coarse.value());
+        
         let mut pm_matrix = [
             f32x8::from([
                 self.params.mod_osc1_by_osc1.value(),

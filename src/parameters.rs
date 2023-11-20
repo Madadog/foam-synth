@@ -262,6 +262,8 @@ pub struct SynthPluginParams {
 
     #[id = "gain"]
     pub gain: FloatParam,
+    #[id = "global_coarse"]
+    pub global_coarse: FloatParam,
     #[id = "octave_multiplier"]
     pub octave_stretch: FloatParam,
 
@@ -476,6 +478,14 @@ impl Default for SynthPluginParams {
             // `.with_step_size(0.1)` function to get internal rounding.
             .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
+            global_coarse: FloatParam::new(
+                "Glob. Coarse",
+                0.0,
+                FloatRange::Linear {
+                    min: -48.0,
+                    max: 48.0,
+                },
+            ).with_step_size(1.0),
             octave_stretch: FloatParam::new(
                 "Octave Stretch",
                 1.0,

@@ -285,7 +285,7 @@ pub struct VoiceParams {
     pub global_release: f32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct OscParams {
     pub output_gain: f32,
     pub sample_rate: f32,
@@ -330,8 +330,9 @@ pub fn release_envelope(sample_rate: f32, time: u32, release: f32, release_level
     release_level * (1.0 - (delta as f32 / release)).max(0.0).powi(2)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Enum)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Enum)]
 pub enum Waveshaper {
+    #[default]
     None,
     Power,
     InversePower,
@@ -343,6 +344,7 @@ pub enum Waveshaper {
     HalfRectify,
     FullRectify,
     HardClip,
+    HardGate,
 }
 impl Waveshaper {
     /// `x` should be between -1 and +1, `amount` should be between 0 and 1
@@ -388,6 +390,10 @@ impl Waveshaper {
             Waveshaper::HardClip => {
                 x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount)
             },
+            Waveshaper::HardGate => {
+                let amount = amount * 0.99;
+                (x.abs().max(amount) - amount) * x.signum() / (1.0 - amount)
+            },
         }
     }
     /// `x` should be between 0 and +1, `amount` should be between 0 and 1
@@ -426,7 +432,7 @@ impl Waveshaper {
                 (x * (amount + 1.0)).round() / amount
             },
             Waveshaper::HalfRectify => {
-                x.max(-1.0 + amount)
+                (x*amount).min(1.0)
             },
             Waveshaper::FullRectify => {
                 let amount = 1.0 - amount;
@@ -434,6 +440,9 @@ impl Waveshaper {
             },
             Waveshaper::HardClip => {
                 x.max(-1.0 + amount).min(1.0 - amount)
+            },
+            Waveshaper::HardGate => {
+                x.abs().max(amount) - amount
             },
         }
     }
@@ -534,7 +543,7 @@ impl From<[OscParams; 8]> for OscParamsBatch {
 
 #[derive(Debug, Clone, Copy)]
 pub struct OscillatorBatch {
-    frequency: f32x8,
+    pub frequency: f32x8,
     midi_id: u8,
     phase: f32x8,
     time: f32x8,
@@ -542,11 +551,11 @@ pub struct OscillatorBatch {
     release_start_level: f32x8,
     previous_wave: [f32x8; 2],
     previous_output: f32x8,
-    gain: f32x8,
+    pub gain: f32x8,
 }
 
 impl OscillatorBatch {
-    fn new(midi_id: u8, params: &OscParamsBatch, velocity: f32) -> Self {
+    pub fn new(midi_id: u8, params: &OscParamsBatch, velocity: f32) -> Self {
         let frequency = OscillatorBatch::get_pitch(midi_id, params);
         // let keyscaling = f32x8::splat(2.0f32.powf((midi_id as f32 - 69.0) * -params.keyscaling / 12.0));
         let keyscaling = f32x8::splat(2.0f32)
@@ -565,7 +574,7 @@ impl OscillatorBatch {
                 * keyscaling,
         }
     }
-    fn envelope(&self, params: &OscParamsBatch) -> f32x8 {
+    pub fn envelope(&self, params: &OscParamsBatch) -> f32x8 {
         if let Some(released_time) = self.time_since_release() {
             Self::release_envelope(
                 params.sample_rate,
@@ -587,7 +596,7 @@ impl OscillatorBatch {
             )
         }
     }
-    fn ads_envelope(
+    pub fn ads_envelope(
         sample_rate: f32x8,
         time: f32x8,
         delay: f32x8,
@@ -623,7 +632,7 @@ impl OscillatorBatch {
         (attack_level + hold_level + decay_level + sustain).max(0.0.into())
     }
 
-    fn release_envelope(
+    pub fn release_envelope(
         sample_rate: f32x8,
         time: f32x8,
         release: f32x8,
@@ -640,7 +649,7 @@ impl OscillatorBatch {
                 .powf(2.0),
         )
     }
-    fn get_pitch(midi_id: u8, params: &OscParamsBatch) -> f32x8 {
+    pub fn get_pitch(midi_id: u8, params: &OscParamsBatch) -> f32x8 {
         (f32x8::splat(2.0).pow_f32x8(
             (midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0)
                 / (12.0 / params.octave_stretch),
@@ -649,10 +658,10 @@ impl OscillatorBatch {
             + params.hz_detune)
             .fast_max(f32x8::splat(0.0))
     }
-    fn update_pitch(&mut self, params: &OscParamsBatch) {
+    pub fn update_pitch(&mut self, params: &OscParamsBatch) {
         self.frequency = OscillatorBatch::get_pitch(self.midi_id, params);
     }
-    fn step(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
+    pub fn step(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.time = self.time + 1.0;
         // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
         let prev = (self.previous_wave[0] + self.previous_wave[1]) / 2.0;
@@ -703,22 +712,22 @@ impl OscillatorBatch {
         ));
         out * self.gain
     }
-    fn step_with_envelope(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
+    pub fn step_with_envelope(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.previous_output = self.step(params, pm) * self.envelope(params);
         self.previous_output * params.output_gain
     }
-    fn release(&mut self, params: &OscParamsBatch) {
+    pub fn release(&mut self, params: &OscParamsBatch) {
         self.release_start_level = self.envelope(params);
         self.release_time = Some(self.time);
     }
-    fn time_since_release(&self) -> Option<f32x8> {
+    pub fn time_since_release(&self) -> Option<f32x8> {
         if let Some(release_time) = self.release_time {
             Some(self.time - release_time)
         } else {
             None
         }
     }
-    fn is_done(&self, params: &OscParamsBatch) -> bool {
+    pub fn is_done(&self, params: &OscParamsBatch) -> bool {
         if let Some(released_time) = self.time_since_release() {
             (released_time / params.sample_rate)
                 .cmp_ge(params.release)
@@ -727,24 +736,24 @@ impl OscillatorBatch {
             false
         }
     }
-    fn calculate_delta(frequency: f32x8, sample_rate: f32x8) -> f32x8 {
+    pub fn calculate_delta(frequency: f32x8, sample_rate: f32x8) -> f32x8 {
         frequency / sample_rate
     }
-    fn add_phase(&mut self, phase_delta: f32x8) {
+    pub fn add_phase(&mut self, phase_delta: f32x8) {
         self.phase += phase_delta;
         // if self.phase >= 1.0 {
         //     self.phase -= 1.0;
         // }
         self.phase -= f32x8::splat(1.0) & self.phase.cmp_ge(1.0);
     }
-    fn calculate_sine(&mut self, phase_delta: f32x8) -> f32x8 {
+    pub fn calculate_sine(&mut self, phase_delta: f32x8) -> f32x8 {
         let sine = (self.phase * std::f32::consts::TAU).sin();
 
         self.add_phase(phase_delta);
 
         sine
     }
-    fn previous(&self) -> f32x8 {
+    pub fn previous(&self) -> f32x8 {
         self.previous_output * self.gain
     }
 }
