@@ -10,7 +10,7 @@ use std::default;
 use std::sync::Arc;
 use wide::f32x8;
 
-use crate::parameters::{OscillatorParams, SynthPluginParams};
+use crate::parameters::{OscMod, OscillatorParams, SynthPluginParams};
 use crate::voice::{OscParams, OscParamsBatch, OscillatorBatch};
 
 use self::param_slider::ParamSlider;
@@ -78,8 +78,16 @@ impl canvas::Program<Message> for EnvelopeWidget {
         let x_margin = 0.9;
 
         let sustain_length = 1.0;
-        let total_length = self.delay + self.attack + self.hold + self.decay + self.release + sustain_length;
-        let (delay_length, attack_length, hold_length, decay_length, release_length, sustain_length) = (
+        let total_length =
+            self.delay + self.attack + self.hold + self.decay + self.release + sustain_length;
+        let (
+            delay_length,
+            attack_length,
+            hold_length,
+            decay_length,
+            release_length,
+            sustain_length,
+        ) = (
             self.delay / total_length,
             self.attack / total_length,
             self.hold / total_length,
@@ -87,11 +95,7 @@ impl canvas::Program<Message> for EnvelopeWidget {
             self.release / total_length,
             sustain_length / total_length,
         );
-        let (
-            attack_height,
-            sustain,
-            release_height,
-        ) = (
+        let (attack_height, sustain, release_height) = (
             self.attack_height * y_margin,
             self.sustain * y_margin,
             self.release_height * y_margin,
@@ -100,27 +104,56 @@ impl canvas::Program<Message> for EnvelopeWidget {
         let bottom = y_offset + bounds.height * y_margin;
         let top = y_offset;
         let points = vec![
-            Point::new(x_offset, y_offset + bounds.height * (y_margin - attack_height)),
-            Point::new(x_offset + bounds.width * delay_length * x_margin, y_offset + bounds.height * (y_margin - attack_height)),
-            Point::new(x_offset + bounds.width * (delay_length + attack_length) * x_margin, top),
-            Point::new(x_offset + bounds.width * (delay_length + attack_length + hold_length) * x_margin, top),
             Point::new(
-                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length) * x_margin,
+                x_offset,
+                y_offset + bounds.height * (y_margin - attack_height),
+            ),
+            Point::new(
+                x_offset + bounds.width * delay_length * x_margin,
+                y_offset + bounds.height * (y_margin - attack_height),
+            ),
+            Point::new(
+                x_offset + bounds.width * (delay_length + attack_length) * x_margin,
+                top,
+            ),
+            Point::new(
+                x_offset + bounds.width * (delay_length + attack_length + hold_length) * x_margin,
+                top,
+            ),
+            Point::new(
+                x_offset
+                    + bounds.width
+                        * (delay_length + attack_length + hold_length + decay_length)
+                        * x_margin,
                 y_offset + bounds.height * (y_margin - sustain),
             ),
             Point::new(
-                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length) * x_margin,
+                x_offset
+                    + bounds.width
+                        * (delay_length
+                            + attack_length
+                            + hold_length
+                            + decay_length
+                            + sustain_length)
+                        * x_margin,
                 y_offset + bounds.height * (y_margin - sustain),
             ),
             Point::new(
-                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length + release_length) * x_margin,
+                x_offset
+                    + bounds.width
+                        * (delay_length
+                            + attack_length
+                            + hold_length
+                            + decay_length
+                            + sustain_length
+                            + release_length)
+                        * x_margin,
                 y_offset + bounds.height * (y_margin - release_height),
             ),
         ];
         let mut time_marks = Vec::new();
-        for i in 0..=((total_length/0.5) as usize) {
-            time_marks.push(
-                x_offset + bounds.width * (i as f32 / (total_length/0.5)) * x_margin);
+        for i in 0..=((total_length / 0.5) as usize) {
+            time_marks.push(x_offset + bounds.width * (i as f32 / (total_length / 0.5)) * x_margin);
         }
         let time_path = canvas::Path::new(|p| {
             for i in time_marks.iter() {
@@ -131,20 +164,14 @@ impl canvas::Program<Message> for EnvelopeWidget {
         let bg_path = canvas::Path::new(|p| {
             p.move_to(Point::new(
                 points[4].x,
-                y_offset + bounds.height * (y_margin - sustain)
+                y_offset + bounds.height * (y_margin - sustain),
             ));
-            p.line_to(Point::new(
-                points[4].x,
-                bottom
-            ));
+            p.line_to(Point::new(points[4].x, bottom));
             p.move_to(Point::new(
                 points[5].x,
-                y_offset + bounds.height * (y_margin - sustain)
+                y_offset + bounds.height * (y_margin - sustain),
             ));
-            p.line_to(Point::new(
-                points[5].x,
-                bottom
-            ));
+            p.line_to(Point::new(points[5].x, bottom));
         });
         let line_path = canvas::Path::new(|p| {
             // for i in points.windows(2) {
@@ -166,24 +193,41 @@ impl canvas::Program<Message> for EnvelopeWidget {
                 p.line_to(i.clone());
             }
             p.line_to(Point::new(
-                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length + release_length) * x_margin,
+                x_offset
+                    + bounds.width
+                        * (delay_length
+                            + attack_length
+                            + hold_length
+                            + decay_length
+                            + sustain_length
+                            + release_length)
+                        * x_margin,
                 bottom,
             ));
             p.line_to(Point::new(x_offset, bottom));
             p.close();
         });
 
-        frame.stroke(&time_path, canvas::Stroke::default().with_color(Color::from_rgba8(0,0,0,0.2)));
-        frame.fill(&fill_path, Fill {color: Color::from_rgb8(230, 230, 230), rule: canvas::FillRule::NonZero});
-        frame.stroke(&bg_path, canvas::Stroke::default().with_color(Color::from_rgb8(150,150,150)));
+        frame.stroke(
+            &time_path,
+            canvas::Stroke::default().with_color(Color::from_rgba8(0, 0, 0, 0.2)),
+        );
+        frame.fill(
+            &fill_path,
+            Fill {
+                color: Color::from_rgb8(230, 230, 230),
+                rule: canvas::FillRule::NonZero,
+            },
+        );
+        frame.stroke(
+            &bg_path,
+            canvas::Stroke::default().with_color(Color::from_rgb8(150, 150, 150)),
+        );
         frame.stroke(&line_path, canvas::Stroke::default());
-        
+
         for i in 0..7 {
             let radius = 2.0;
-            let point = Point::new(
-                points[i].x - radius,
-                points[i].y - radius,
-            );
+            let point = Point::new(points[i].x - radius, points[i].y - radius);
             frame.fill_rectangle(point, Size::new(radius * 2.0, radius * 2.0), Color::BLACK);
         }
 
@@ -354,7 +398,7 @@ impl IcedEditor for SynthPluginEditor {
                 Row::new()
                     .padding(Padding::from(10))
                     .spacing(20)
-                    .push(self.matrix.ui_matrix(&self.params))
+                    .push(self.matrix.fm_matrix(&self.params))
                     .push(self.filter_params.ui(&self.params))
                     .push(self.global_envelope.ui(&self.params))
                     // .push(Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)))
@@ -553,7 +597,7 @@ impl OscillatorWidget {
                         ))
                         .height(18.into())
                         .width(slider_width.into())
-                    })
+                    }),
             )
             .push(
                 Row::new()
@@ -804,78 +848,105 @@ fn title_bar<'a>() -> Column<'a, Message> {
 }
 
 #[derive(Debug, Default)]
+struct MatrixRow(
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+    param_slider::State,
+);
+impl MatrixRow {
+    pub fn to_ui<'a>(
+        &'a mut self,
+        label: String,
+        spacing: u16,
+        slider_width: u16,
+        slider_height: u16,
+        slider_font_size: u16,
+        params: &'a OscMod,
+    ) -> Row<Message> {
+        Row::new()
+            .spacing(spacing)
+            .push(
+                Text::new(label)
+                    .size(14)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .vertical_alignment(alignment::Vertical::Center),
+            )
+            .push(
+                ParamSlider::new(&mut self.0, &params.by_osc1)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.1, &params.by_osc2)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.2, &params.by_osc3)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.3, &params.by_osc4)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.4, &params.by_osc5)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.5, &params.by_osc6)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.6, &params.by_osc7)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(
+                ParamSlider::new(&mut self.7, &params.by_osc8)
+                    .width(slider_width.into())
+                    .height(slider_height.into())
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+    }
+}
+
+#[derive(Debug, Default)]
 struct MatrixWidget {
-    _1_1: param_slider::State,
-    _1_2: param_slider::State,
-    _1_3: param_slider::State,
-    _1_4: param_slider::State,
-    _1_5: param_slider::State,
-    _1_6: param_slider::State,
-    _1_7: param_slider::State,
-    _1_8: param_slider::State,
-
-    _2_1: param_slider::State,
-    _2_2: param_slider::State,
-    _2_3: param_slider::State,
-    _2_4: param_slider::State,
-    _2_5: param_slider::State,
-    _2_6: param_slider::State,
-    _2_7: param_slider::State,
-    _2_8: param_slider::State,
-
-    _3_1: param_slider::State,
-    _3_2: param_slider::State,
-    _3_3: param_slider::State,
-    _3_4: param_slider::State,
-    _3_5: param_slider::State,
-    _3_6: param_slider::State,
-    _3_7: param_slider::State,
-    _3_8: param_slider::State,
-
-    _4_1: param_slider::State,
-    _4_2: param_slider::State,
-    _4_3: param_slider::State,
-    _4_4: param_slider::State,
-    _4_5: param_slider::State,
-    _4_6: param_slider::State,
-    _4_7: param_slider::State,
-    _4_8: param_slider::State,
-
-    _5_1: param_slider::State,
-    _5_2: param_slider::State,
-    _5_3: param_slider::State,
-    _5_4: param_slider::State,
-    _5_5: param_slider::State,
-    _5_6: param_slider::State,
-    _5_7: param_slider::State,
-    _5_8: param_slider::State,
-
-    _6_1: param_slider::State,
-    _6_2: param_slider::State,
-    _6_3: param_slider::State,
-    _6_4: param_slider::State,
-    _6_5: param_slider::State,
-    _6_6: param_slider::State,
-    _6_7: param_slider::State,
-    _6_8: param_slider::State,
-
-    _7_1: param_slider::State,
-    _7_2: param_slider::State,
-    _7_3: param_slider::State,
-    _7_4: param_slider::State,
-    _7_5: param_slider::State,
-    _7_6: param_slider::State,
-    _7_7: param_slider::State,
-    _7_8: param_slider::State,
-
-    _8_1: param_slider::State,
-    _8_2: param_slider::State,
-    _8_3: param_slider::State,
-    _8_4: param_slider::State,
-    _8_5: param_slider::State,
-    _8_6: param_slider::State,
-    _8_7: param_slider::State,
-    _8_8: param_slider::State,
+    _1: MatrixRow,
+    _2: MatrixRow,
+    _3: MatrixRow,
+    _4: MatrixRow,
+    _5: MatrixRow,
+    _6: MatrixRow,
+    _7: MatrixRow,
+    _8: MatrixRow,
 
     osc1_amp: param_slider::State,
     osc2_amp: param_slider::State,
@@ -887,7 +958,7 @@ struct MatrixWidget {
     osc8_amp: param_slider::State,
 }
 impl MatrixWidget {
-    fn ui_matrix<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
+    fn fm_matrix<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
         let slider_width = 30;
         let slider_height = 14;
         let slider_font_size = 12;
@@ -928,550 +999,70 @@ impl MatrixWidget {
                 }
                 row
             })
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 1".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_1, &params.mod_osc1_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_2, &params.mod_osc1_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_3, &params.mod_osc1_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_4, &params.mod_osc1_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_5, &params.mod_osc1_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_6, &params.mod_osc1_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_7, &params.mod_osc1_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._1_8, &params.mod_osc1_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 2".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_1, &params.mod_osc2_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_2, &params.mod_osc2_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_3, &params.mod_osc2_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_4, &params.mod_osc2_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_5, &params.mod_osc2_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_6, &params.mod_osc2_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_7, &params.mod_osc2_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._2_8, &params.mod_osc2_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 3".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_1, &params.mod_osc3_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_2, &params.mod_osc3_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_3, &params.mod_osc3_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_4, &params.mod_osc3_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_5, &params.mod_osc3_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_6, &params.mod_osc3_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_7, &params.mod_osc3_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._3_8, &params.mod_osc3_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 4".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_1, &params.mod_osc4_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_2, &params.mod_osc4_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_3, &params.mod_osc4_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_4, &params.mod_osc4_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_5, &params.mod_osc4_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_6, &params.mod_osc4_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_7, &params.mod_osc4_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._4_8, &params.mod_osc4_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 5".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_1, &params.mod_osc5_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_2, &params.mod_osc5_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_3, &params.mod_osc5_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_4, &params.mod_osc5_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_5, &params.mod_osc5_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_6, &params.mod_osc5_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_7, &params.mod_osc5_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._5_8, &params.mod_osc5_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 6".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_1, &params.mod_osc6_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_2, &params.mod_osc6_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_3, &params.mod_osc6_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_4, &params.mod_osc6_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_5, &params.mod_osc6_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_6, &params.mod_osc6_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_7, &params.mod_osc6_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._6_8, &params.mod_osc6_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 7".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_1, &params.mod_osc7_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_2, &params.mod_osc7_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_3, &params.mod_osc7_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_4, &params.mod_osc7_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_5, &params.mod_osc7_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_6, &params.mod_osc7_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_7, &params.mod_osc7_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._7_8, &params.mod_osc7_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
-            .push(
-                Row::new()
-                    .spacing(spacing)
-                    .push(
-                        Text::new("To 8".to_string())
-                            .size(14)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .horizontal_alignment(alignment::Horizontal::Center)
-                            .vertical_alignment(alignment::Vertical::Center),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_1, &params.mod_osc8_by_osc1)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_2, &params.mod_osc8_by_osc2)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_3, &params.mod_osc8_by_osc3)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_4, &params.mod_osc8_by_osc4)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_5, &params.mod_osc8_by_osc5)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_6, &params.mod_osc8_by_osc6)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_7, &params.mod_osc8_by_osc7)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    )
-                    .push(
-                        ParamSlider::new(&mut self._8_8, &params.mod_osc8_by_osc8)
-                            .width(slider_width.into())
-                            .height(slider_height.into())
-                            .text_size(slider_font_size)
-                            .map(Message::ParamUpdate),
-                    ),
-            )
+            .push(self._1.to_ui(
+                "To 1".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc1_fm_mod,
+            ))
+            .push(self._2.to_ui(
+                "To 2".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc2_fm_mod,
+            ))
+            .push(self._3.to_ui(
+                "To 3".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc3_fm_mod,
+            ))
+            .push(self._4.to_ui(
+                "To 4".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc4_fm_mod,
+            ))
+            .push(self._5.to_ui(
+                "To 5".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc5_fm_mod,
+            ))
+            .push(self._6.to_ui(
+                "To 6".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc6_fm_mod,
+            ))
+            .push(self._7.to_ui(
+                "To 7".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc7_fm_mod,
+            ))
+            .push(self._8.to_ui(
+                "To 8".to_string(),
+                spacing,
+                slider_width,
+                slider_height,
+                slider_font_size,
+                &params.osc8_fm_mod,
+            ))
             .push(
                 Row::new()
                     .spacing(spacing)
@@ -1724,7 +1315,6 @@ impl GlobalEnvelopeWidget {
                     .push(
                         Column::new()
                             .max_width(90)
-
                             .push({
                                 Canvas::new(EnvelopeWidget::new(
                                     0.0,
