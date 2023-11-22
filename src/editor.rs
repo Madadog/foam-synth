@@ -1,6 +1,6 @@
 use nih_plug::prelude::FloatParam;
 use nih_plug::prelude::{util, Editor, GuiContext};
-use nih_plug_iced::canvas::Cache;
+use nih_plug_iced::canvas::{Cache, Fill};
 use nih_plug_iced::renderer::Renderer;
 use nih_plug_iced::widget::image;
 use nih_plug_iced::widgets as nih_widgets;
@@ -33,67 +33,159 @@ pub(crate) fn create(
 }
 
 #[derive(Debug, Clone)]
-struct CanvasTest {
+struct EnvelopeWidget {
     size: f32,
+    delay: f32,
     attack: f32,
+    attack_height: f32,
+    hold: f32,
     decay: f32,
     sustain: f32,
     release: f32,
+    release_height: f32,
 }
-impl CanvasTest {
-    fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Self {
+impl EnvelopeWidget {
+    fn new(
+        delay: f32,
+        attack: f32,
+        attack_height: f32,
+        hold: f32,
+        decay: f32,
+        sustain: f32,
+        release: f32,
+        release_height: f32,
+    ) -> Self {
         Self {
             size: 5.0,
+            delay,
             attack,
+            hold,
+            attack_height,
             decay,
             sustain,
             release,
+            release_height,
         }
     }
 }
-impl canvas::Program<Message> for CanvasTest {
+impl canvas::Program<Message> for EnvelopeWidget {
     fn draw(&self, bounds: Rectangle, _cursor: canvas::Cursor) -> Vec<canvas::Geometry> {
         // We prepare a new `Frame`
         let mut frame = canvas::Frame::new(bounds.size());
+        let y_offset = 2.0;
+        let y_margin = 0.8;
+        let x_offset = 2.0;
+        let x_margin = 0.9;
 
-        // We create a `Path` representing a simple circle
-        let circle = canvas::Path::circle(frame.center(), self.size);
-
-        let attack = canvas::Path::line(
-            Point::new(0.0, -bounds.height),
-            Point::new(self.attack * 10.0, 0.0),
+        let sustain_length = 1.0;
+        let total_length = self.delay + self.attack + self.hold + self.decay + self.release + sustain_length;
+        let (delay_length, attack_length, hold_length, decay_length, release_length, sustain_length) = (
+            self.delay / total_length,
+            self.attack / total_length,
+            self.hold / total_length,
+            self.decay / total_length,
+            self.release / total_length,
+            sustain_length / total_length,
         );
-        let decay = canvas::Path::line(
-            Point::new(self.attack * 10.0, bounds.height),
-            Point::new(
-                self.attack * 10.0 + self.decay * 10.0,
-                self.sustain * bounds.height,
-            ),
-        );
-        let sustain = canvas::Path::line(
-            Point::new(self.attack * 10.0 + self.decay * 10.0, self.sustain * 10.0),
-            Point::new(
-                self.attack * 10.0 + self.decay * 10.0 + 10.0,
-                self.sustain * bounds.height,
-            ),
-        );
-        let release = canvas::Path::line(
-            Point::new(
-                self.attack * 10.0 + self.decay * 10.0 + 10.0,
-                self.sustain * bounds.height,
-            ),
-            Point::new(
-                self.attack * 10.0 + self.decay * 10.0 + self.release * 10.0 + 10.0,
-                0.0,
-            ),
+        let (
+            attack_height,
+            sustain,
+            release_height,
+        ) = (
+            self.attack_height * y_margin,
+            self.sustain * y_margin,
+            self.release_height * y_margin,
         );
 
-        for i in [attack, decay, sustain, release] {
-            frame.stroke(&i, canvas::Stroke::default())
+        let bottom = y_offset + bounds.height * y_margin;
+        let top = y_offset;
+        let points = vec![
+            Point::new(x_offset, y_offset + bounds.height * (y_margin - attack_height)),
+            Point::new(x_offset + bounds.width * delay_length * x_margin, y_offset + bounds.height * (y_margin - attack_height)),
+            Point::new(x_offset + bounds.width * (delay_length + attack_length) * x_margin, top),
+            Point::new(x_offset + bounds.width * (delay_length + attack_length + hold_length) * x_margin, top),
+            Point::new(
+                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length) * x_margin,
+                y_offset + bounds.height * (y_margin - sustain),
+            ),
+            Point::new(
+                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length) * x_margin,
+                y_offset + bounds.height * (y_margin - sustain),
+            ),
+            Point::new(
+                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length + release_length) * x_margin,
+                y_offset + bounds.height * (y_margin - release_height),
+            ),
+        ];
+        let mut time_marks = Vec::new();
+        for i in 0..=((total_length/0.5) as usize) {
+            time_marks.push(
+                x_offset + bounds.width * (i as f32 / (total_length/0.5)) * x_margin);
         }
+        let time_path = canvas::Path::new(|p| {
+            for i in time_marks.iter() {
+                p.move_to(Point::new(*i, top));
+                p.line_to(Point::new(*i, bottom));
+            }
+        });
+        let bg_path = canvas::Path::new(|p| {
+            p.move_to(Point::new(
+                points[4].x,
+                y_offset + bounds.height * (y_margin - sustain)
+            ));
+            p.line_to(Point::new(
+                points[4].x,
+                bottom
+            ));
+            p.move_to(Point::new(
+                points[5].x,
+                y_offset + bounds.height * (y_margin - sustain)
+            ));
+            p.line_to(Point::new(
+                points[5].x,
+                bottom
+            ));
+        });
+        let line_path = canvas::Path::new(|p| {
+            // for i in points.windows(2) {
+            //     p.move_to(i[0]);
+            //     p.line_to(i[1]);
+            // }
+            p.move_to(points[0]);
+            for i in points.iter() {
+                p.line_to(i.clone());
+            }
+        });
+        let fill_path = canvas::Path::new(|p| {
+            // for i in points.windows(2) {
+            //     p.move_to(i[0]);
+            //     p.line_to(i[1]);
+            // }
+            p.move_to(points[0]);
+            for i in points.iter() {
+                p.line_to(i.clone());
+            }
+            p.line_to(Point::new(
+                x_offset + bounds.width * (delay_length + attack_length + hold_length + decay_length + sustain_length + release_length) * x_margin,
+                bottom,
+            ));
+            p.line_to(Point::new(x_offset, bottom));
+            p.close();
+        });
 
-        // And fill it with some color
-        // frame.fill(&circle, Color::BLACK);
+        frame.stroke(&time_path, canvas::Stroke::default().with_color(Color::from_rgba8(0,0,0,0.2)));
+        frame.fill(&fill_path, Fill {color: Color::from_rgb8(230, 230, 230), rule: canvas::FillRule::NonZero});
+        frame.stroke(&bg_path, canvas::Stroke::default().with_color(Color::from_rgb8(150,150,150)));
+        frame.stroke(&line_path, canvas::Stroke::default());
+        
+        for i in 0..7 {
+            let radius = 2.0;
+            let point = Point::new(
+                points[i].x - radius,
+                points[i].y - radius,
+            );
+            frame.fill_rectangle(point, Size::new(radius * 2.0, radius * 2.0), Color::BLACK);
+        }
 
         // Finally, we produce the geometry
         vec![frame.into_geometry()]
@@ -146,16 +238,19 @@ impl canvas::Program<Message> for OscilloscopeWidget {
             .collect();
         points.push(Point::new(100.0, points[0].y));
         let path = canvas::Path::new(|p| {
-            for i in points.windows(2) {
-                p.move_to(i[0]);
-                p.line_to(i[1]);
+            p.move_to(points[0]);
+            for i in points.iter() {
+                p.line_to(i.clone());
             }
         });
 
         frame.stroke(&path, canvas::Stroke::default());
         if self.border {
             frame.stroke(
-                &canvas::Path::rectangle(Point::new(0.0, 0.0), Size::new(bounds.width, bounds.height)),
+                &canvas::Path::rectangle(
+                    Point::new(0.0, 0.0),
+                    Size::new(bounds.width, bounds.height),
+                ),
                 canvas::Stroke::default(),
             );
         }
@@ -421,16 +516,32 @@ impl OscillatorWidget {
         let slider_font_size = 14;
         let slider_width = 60;
         let slider_height = 14;
+        let osc_env_spacing = 8;
         Column::new()
             .push(
                 Row::new()
                     .push(
                         Text::new(&self.name)
                             .size(18)
-                            .horizontal_alignment(alignment::Horizontal::Center)
+                            .width(slider_width.into())
                             .font(assets::NOTO_SANS_BOLD),
                     )
-                    .push(Space::with_width(8.into()))
+                    .push(Space::with_width(osc_env_spacing.into()))
+                    .push({
+                        Canvas::new(EnvelopeWidget::new(
+                            osc_params.delay.value(),
+                            osc_params.attack.value(),
+                            osc_params.attack_level.value(),
+                            osc_params.hold.value(),
+                            osc_params.decay.value(),
+                            osc_params.sustain.value(),
+                            osc_params.release.value(),
+                            osc_params.release_level.value(),
+                        ))
+                        .height(18.into())
+                        .width(slider_width.into())
+                    })
+                    .push(Space::with_width(osc_env_spacing.into()))
                     .push({
                         let mut params = [OscParams::default(); 8];
                         params[self.index] = osc_params.to_osc_params(100.0, 1.0, 0);
@@ -441,8 +552,8 @@ impl OscillatorWidget {
                             self.index,
                         ))
                         .height(18.into())
-                        .width(50.into())
-                    }),
+                        .width(slider_width.into())
+                    })
             )
             .push(
                 Row::new()
@@ -1613,6 +1724,21 @@ impl GlobalEnvelopeWidget {
                     .push(
                         Column::new()
                             .max_width(90)
+
+                            .push({
+                                Canvas::new(EnvelopeWidget::new(
+                                    0.0,
+                                    params.global_attack.value(),
+                                    0.0,
+                                    0.0,
+                                    params.global_decay.value(),
+                                    params.global_sustain.value(),
+                                    params.global_release.value(),
+                                    0.0,
+                                ))
+                                .height(28.into())
+                                .width(slider_width.into())
+                            })
                             .push(Text::new("Attack").size(font_size))
                             .push(
                                 ParamSlider::new(&mut self.attack, &params.global_attack)

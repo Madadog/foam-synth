@@ -1,5 +1,5 @@
 # Foam
-![Screenshot of UI](gui_v2.png)
+![Screenshot of UI](gui_v3.png)
 
 8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats. Oscillator generation and modulation is SIMD accelerated (via [wide](https://github.com/lokathor/wide)).
 
@@ -84,6 +84,10 @@ The following file/s are additionally available under the ISC license (indicated
     * Allow use of the filter in FM modulation
     * +/- FM modulation for all controls
     * RM modulation
+    * Mod matrix
+    * Preset manager
+    * Click/drag points on graphical envelope
+    * Log scaling for filter modulation (not linear)
     * Legato, portamento
     * Add noise source somewhere
     * Oversampling
@@ -100,7 +104,6 @@ The following file/s are additionally available under the ISC license (indicated
     * Add filter send to matrix
     * Use relative ParamSlider for FloatParams, absolute for EnumParams
     * Dropdown menus for EnumParams
-    * Visualize envelopes & their settings
     * Dark theme
     * Global oscilloscope / spectrogram
     * Resizable GUI
