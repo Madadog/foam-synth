@@ -103,6 +103,22 @@ pub mod oscillators {
     }
 
     #[derive(Default, Clone)]
+    pub struct SineOscillator4 {
+        phase: u32,
+    }
+    impl Oscillate for SineOscillator4 {
+        fn render(&mut self, delta: f32, output: &mut [f32]) {
+            for sample in output {
+                let bit_depth = 24;
+                let phase_inc = (delta * (2 << (bit_depth - 1)) as f32) as u32;
+                self.phase = self.phase.wrapping_add(phase_inc) % (2 << bit_depth);
+                let index = ((self.phase >> (bit_depth - 11)) % 2048) as f32;
+                *sample += ((index / 2048.0) * TAU).sin();
+            }
+        }
+    }
+
+    #[derive(Default, Clone)]
     pub struct SquareOscillator {
         phase: f32,
     }
@@ -174,6 +190,36 @@ pub mod oscillators {
             Self {
                 phase: Default::default(),
                 samples: vec![0.0; 2048],
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct NaiveWaveOscillator2 {
+        phase: u32,
+        samples: Vec<f32>,
+    }
+    impl Oscillate for NaiveWaveOscillator2 {
+        fn render(&mut self, delta: f32, output: &mut [f32]) {
+            let bit_depth = 24;
+            for sample in output {
+                let phase_inc = (delta * (2 << (bit_depth - 1)) as f32) as u32;
+                self.phase = self.phase.wrapping_add(phase_inc) % (2 << bit_depth);
+                let index = ((self.phase >> (bit_depth - 11)) % 2048) as usize;
+                *sample += self.samples
+                    [index];
+            }
+        }
+    }
+    impl Default for NaiveWaveOscillator2 {
+        fn default() -> Self {
+            let samples = (0..2048).into_iter().map(|i| {
+                let x = (i as f32) / 2048.0;
+                (x * TAU).sin()
+            }).collect();
+            Self {
+                phase: Default::default(),
+                samples,
             }
         }
     }
@@ -387,7 +433,7 @@ pub mod oscillators {
     pub enum MetaOscillator {
         Sine(SineOscillator2),
         Square(SquareOscillator),
-        NaiveWave(NaiveWaveOscillator),
+        NaiveWave(NaiveWaveOscillator2),
         LerpWave(LerpWaveOscillator),
         CatmullRom(CatmullRomOscillator2),
     }
@@ -535,29 +581,36 @@ pub mod oscillators {
             // println!("took {time} to render {} samples", buffer.len());
             time
         }
-        fn benchmark_samples(mut osc: impl Oscillate) -> f32 {
+        fn benchmark_samples(mut osc: impl Oscillate) -> (f32, Vec<f32>) {
             let mut buffer = [0.0f32; 44100 * 5];
             let block_size = 32;
             let pitches: Vec<f32> = (0..(32 * 8))
-                .map(|x| ((x as f32) * 40.0 + 100.0) / 44100.0)
+                .map(|x| ((x as f32) * 10.0 + 40.0) / 44100.0)
                 .collect();
+            // let pitches: Vec<f32> = vec![200.0 / 44100.0, (200.0 * 5.0/2.0) / 44100.0, 300.0 / 44100.0];
             let now = Instant::now();
             for pitch in pitches {
                 for samples in buffer.chunks_exact_mut(block_size) {
                     osc.render(pitch, samples);
                 }
             }
+            for sample in buffer.iter_mut() {
+                *sample *= (1.0 / (32.0 * 8.0));
+            }
             let time = now.elapsed().as_secs_f32();
             // println!("took {time} to render {} samples", buffer.len());
-            time
+            (time, Vec::from(buffer))
         }
-        fn multi_benchmark(osc: impl Oscillate + Clone) -> f32 {
+        fn multi_benchmark(osc: impl Oscillate + Clone) -> (f32, Vec<f32>) {
             let mut samples: Vec<f32> = Vec::with_capacity(10);
+            let mut audio: Vec<Vec<f32>> = Vec::with_capacity(10);
             for _ in 0..5 {
-                samples.push(benchmark_samples(osc.clone()));
+                let (time, sample) = benchmark_samples(osc.clone());
+                samples.push(time);
+                audio.push(sample);
             }
             let len = samples.len() as f32;
-            samples.into_iter().sum::<f32>() / len
+            (samples.into_iter().sum::<f32>() / len, audio.into_iter().flatten().collect())
         }
         fn benchmark_samples_params(mut osc: impl ParamOscillate) -> f32 {
             let mut buffer = [0.0f32; 44100 * 5];
@@ -601,57 +654,87 @@ pub mod oscillators {
         }
         #[test]
         fn benchmark_all() {
+            fn multi_benchmark_and_file(osc: impl Oscillate + Clone, name: &str) -> Result<f32, ()> {
+                use hound;
+    
+                let spec = hound::WavSpec {
+                    channels: 2,
+                    sample_rate: 44100,
+                    bits_per_sample: 32,
+                    sample_format: hound::SampleFormat::Float,
+                };
+                let (time, audio) = multi_benchmark(osc);
+                let mut writer = hound::WavWriter::create(format!("target/{name}.wav"), spec).unwrap();
+                for x in audio {
+                    if let Err(_) = writer.write_sample(x) {
+                        return Err(())
+                    }
+                    if let Err(_) = writer.write_sample(x) {
+                        return Err(())
+                    }
+                }
+                Ok(time)
+            }
             // let osc1 = SineOscillator::default();
             // println!("SineOscillator took {} to render", multi_benchmark(osc1));
             let osc2 = SineOscillator2::default();
-            println!("SineOscillator2 took {} to render", multi_benchmark(osc2));
+            let name = "SineOscillator2";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc2, name).unwrap());
             // let osc3 = SineOscillator3::default();
             // println!("SineOscillator3 took {} to render", multi_benchmark(osc3));
             // let osc = SquareOscillator::default();
+            let osc = SineOscillator4::default();
+            let name = "SineOscillator4";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
             // println!("SquareOscillator took {} to render", multi_benchmark(osc));
             // let osc = GbOscillator::default();
             // println!("GbOscillator took {} to render", multi_benchmark(osc));
             // let osc = GbOscillatorModulo::default();
             // println!("GbOscillatorModulo took {} to render", multi_benchmark(osc));
             let osc = NaiveWaveOscillator::default();
-            println!(
-                "NaiveWaveOscillator took {} to render",
-                multi_benchmark(osc)
-            );
+            let name = "NaiveWaveOscillator";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
+            let osc = NaiveWaveOscillator2::default();
+            let name = "NaiveWaveOscillator2";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
             let osc = LerpWaveOscillator::default();
-            println!("LerpWaveOscillator took {} to render", multi_benchmark(osc));
+            let name = "LerpWaveOscillator";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
             let osc = CatmullRomOscillator::default();
-            println!(
-                "CatmullRomOscillator took {} to render",
-                multi_benchmark(osc)
-            );
+            let name = "CatmullRomOscillator";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
             let osc = CatmullRomOscillator2::default();
-            println!(
-                "CatmullRomOscillator2 took {} to render",
-                multi_benchmark(osc)
-            );
+            let name = "CatmullRomOscillator2";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
             let osc = CatmullRomOscillator3::default();
-            println!(
-                "CatmullRomOscillator3 took {} to render",
-                multi_benchmark(osc)
-            );
+            let name = "CatmullRomOscillator2";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
+
             let osc = ParamSmoother::default();
-            println!("ParamSmoother took {} to render", multi_benchmark(osc));
+            println!("ParamSmoother took {} to render", multi_benchmark(osc).0);
             let osc = SurgeQuadrOsc::default();
-            println!("SurgeQuadrOsc took {} to render", multi_benchmark(osc));
+            let name = "SurgeQuadrOsc";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
             let mut osc = MetaOscillator::CatmullRom(CatmullRomOscillator2::default());
-            println!("MetaOscillator::CatmullRom took {} to render", multi_benchmark(osc));
+            let name = "MetaOscillator::CatmullRom";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
             osc = MetaOscillator::Square(SquareOscillator::default());
-            println!("MetaOscillator::Square took {} to render", multi_benchmark(osc));
+            let name = "MetaOscillator::Square";
+            println!("{name} took {} to render", multi_benchmark_and_file(osc, name).unwrap());
         }
         #[test]
         fn benchmark_params() {
             let ramp = ramp_up(8.0);
             let ramp_down = ramp_down(8.0);
             let osc1 = SineOscillator::default();
-            println!("SineOscillator took {} to render", multi_benchmark(osc1));
+            println!("SineOscillator took {} to render", multi_benchmark(osc1).0);
             let osc2 = SineOscillator2::default();
-            println!("SineOscillator2 took {} to render", multi_benchmark(osc2));
+            println!("SineOscillator2 took {} to render", multi_benchmark(osc2).0);
             let osc = PitchGen;
             println!("PitchGen took {} to render", multi_benchmark_params(osc));
             let osc = SineOscillatorParams::default();

@@ -427,6 +427,7 @@ dependencies = [
  "atomic_refcell",
  "bytemuck",
  "enum_dispatch",
+ "hound",
  "itertools",
  "nih_plug",
  "nih_plug_iced",
@@ -657,6 +658,12 @@ name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
+
+[[package]]
+name = "hound"
+version = "3.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62adaabb884c94955b19907d60019f4e145d091c75345379e70d1ee696f7854f"
 
 [[package]]
 name = "iced_baseview"

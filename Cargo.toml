@@ -27,6 +27,9 @@ wide = "0.7.12"
 # the GPL compatibility requirement
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default_features = false, features = ["assert_process_allocs"] }
 
+[dev-dependencies]
+hound = "3.5.1"
+
 [profile.release]
 lto = "thin"
 strip = "symbols"
