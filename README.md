@@ -20,8 +20,10 @@ There are 8 feedback-capable sine oscillators, each with independent amplitude e
     * **Frequency Multiply:** Multiplies frequency by an integer value from 1-64
     * **Frequency Divide:** Divides frequency by an integer value from 1-64
 * **Envelope controls: (affects modulation)**
+    * **Delay:** Time before note starts.
     * **Attack:** Envelope attack time. How long it takes to reach maximum volume after note start.
-    * **Decay:** Envelope decay time. How long it takes for the volume to descend to the sustain level after attack time.
+    * **Delay:** Time note is held at peak after attack.
+    * **Decay:** Envelope decay time. How long it takes for the volume to descend to the sustain level after attack + hold time.
     * **Sustain:** Envelope sustain level. Sustained volume level after decay stage but before note release.
     * **Release:** Envelope release time. Time note continues playing after note release.
     * Note: The decay and release stages are exponential, not linear. 
@@ -75,25 +77,23 @@ The following file/s are additionally available under the ISC license (indicated
 ## TODO:
 
 * DSP:
-    * Add panning
-    * Envelope slope controls?
-    * Precalculate table for tuning approximation?
-    * Add pitch bend control
-    * Add LFO and pitch envelope
-    * Toggle oscillators on/off
-    * Allow use of the filter in FM modulation
-    * +/- FM modulation for all controls
-    * RM modulation
-    * Mod matrix
-    * Preset manager
-    * Click/drag points on graphical envelope
     * Log scaling for filter modulation (not linear)
     * Legato, portamento
     * Add noise source somewhere
-    * Oversampling
-    * Bandlimited oscillator toggle
+    * Bandlimited oscillator toggle / multiple waves
         * AKA just turn it into a wavetable synth...
-    * OPL2 waveform select
+    * Add LFO and pitch envelope
+    * RM modulation
+    * Mod matrix
+    * Preset manager
+    * Oversampling
+    * Add panning
+    * Click/drag points on graphical envelope
+    * MSEG modulators
+    * Envelope slope controls?
+    * Precalculate table for tuning approximation?
+    * Toggle oscillators on/off
+    * Allow use of the filter in FM modulation
     * Allow picking keyscaling root key
     * Scala support?
     * 8/16/24 bit integer FM calcs from Dexed? (for speed)
@@ -101,6 +101,7 @@ The following file/s are additionally available under the ISC license (indicated
         * Enforce a minimum (constant?) block size
 
 * GUI:
+    * Highlight/bold From # and To # on mouseover
     * Add filter send to matrix
     * Use relative ParamSlider for FloatParams, absolute for EnumParams
     * Dropdown menus for EnumParams
@@ -122,6 +123,7 @@ The following file/s are additionally available under the ISC license (indicated
     * 2 filters, more filter types.
     * Good presets
     * Add/remove oscillators
+    * Configurable waveshaper on each fm connection
     
 og pitch + matrix -> phase (0-1) -> phaseshaper (0-1) -> wave -> waveshaper -> matrix -> effects -> out
 

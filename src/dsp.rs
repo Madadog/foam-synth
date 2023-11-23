@@ -110,9 +110,9 @@ pub mod oscillators {
         fn render(&mut self, delta: f32, output: &mut [f32]) {
             for sample in output {
                 let bit_depth = 24;
-                let phase_inc = (delta * (2 << (bit_depth - 1)) as f32) as u32;
+                let phase_inc = (delta * (2 << (bit_depth)) as f32) as u32;
                 self.phase = self.phase.wrapping_add(phase_inc) % (2 << bit_depth);
-                let index = ((self.phase >> (bit_depth - 11)) % 2048) as f32;
+                let index = ((self.phase >> (bit_depth - 10)) % 2048) as f32;
                 *sample += ((index / 2048.0) * TAU).sin();
             }
         }
@@ -203,9 +203,9 @@ pub mod oscillators {
         fn render(&mut self, delta: f32, output: &mut [f32]) {
             let bit_depth = 24;
             for sample in output {
-                let phase_inc = (delta * (2 << (bit_depth - 1)) as f32) as u32;
+                let phase_inc = (delta * (2 << (bit_depth)) as f32) as u32;
                 self.phase = self.phase.wrapping_add(phase_inc) % (2 << bit_depth);
-                let index = ((self.phase >> (bit_depth - 11)) % 2048) as usize;
+                let index = ((self.phase >> (bit_depth - 10)) % 2048) as usize;
                 *sample += self.samples
                     [index];
             }
@@ -584,10 +584,10 @@ pub mod oscillators {
         fn benchmark_samples(mut osc: impl Oscillate) -> (f32, Vec<f32>) {
             let mut buffer = [0.0f32; 44100 * 5];
             let block_size = 32;
-            let pitches: Vec<f32> = (0..(32 * 8))
-                .map(|x| ((x as f32) * 10.0 + 40.0) / 44100.0)
-                .collect();
-            // let pitches: Vec<f32> = vec![200.0 / 44100.0, (200.0 * 5.0/2.0) / 44100.0, 300.0 / 44100.0];
+            // let pitches: Vec<f32> = (0..(32 * 8))
+            //     .map(|x| ((x as f32) * 10.0 + 40.0) / 44100.0)
+            //     .collect();
+            let pitches: Vec<f32> = vec![200.0 / 44100.0, (200.0 * 5.0/2.0) / 44100.0, 300.0 / 44100.0];
             let now = Instant::now();
             for pitch in pitches {
                 for samples in buffer.chunks_exact_mut(block_size) {
