@@ -49,7 +49,7 @@ impl Plugin for SynthPlugin {
         },
     ];
 
-    const MIDI_INPUT: MidiConfig = MidiConfig::Basic;
+    const MIDI_INPUT: MidiConfig = MidiConfig::MidiCCs;
     const SAMPLE_ACCURATE_AUTOMATION: bool = true;
 
     // If the plugin can send or receive SysEx messages, it can define a type to wrap around those
@@ -150,11 +150,11 @@ impl Plugin for SynthPlugin {
             global_sustain: self.params.global_sustain.value(),
             global_release: self.params.global_release.value(),
         };
-        self.voices.block_update(&osc_params, voice_params);
+        self.voices.block_update(&osc_params, voice_params, self.params.bend_range.value());
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
             let gain = self.params.gain.smoothed.next();
-
+            
             while let Some(event) = next_event {
                 if event.timing() != sample_id as u32 {
                     // println!("Event at {sample_id}: {:?}", event);
@@ -164,11 +164,15 @@ impl Plugin for SynthPlugin {
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
                         self.voices
-                            .add_voice(note, &osc_params, velocity, voice_params);
+                        .add_voice(note, &osc_params, velocity, voice_params, self.params.bend_range.value());
                     }
                     NoteEvent::NoteOff { note, .. } => {
                         // println!("Note off at {}/{sample_id}: {}", event.timing(), note);
                         self.voices.release_voice(note, &osc_params, &voice_params);
+                    }
+                    NoteEvent::MidiPitchBend { timing, channel, value } => { 
+                        let value = (value - 0.5) * 2.0;
+                        self.voices.pitch_bend = value;
                     }
                     _ => (),
                 }

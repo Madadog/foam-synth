@@ -14,12 +14,13 @@ use crate::{
 };
 
 pub struct VoiceList {
-    voices: [Option<Voice>; 32],
+    pub voices: [Option<Voice>; 32],
+    pub pitch_bend: f32,
 }
 
 impl VoiceList {
     pub fn new() -> Self {
-        Self { voices: [None; 32] }
+        Self { voices: [None; 32], pitch_bend: 0.0 }
     }
     pub fn play(
         &mut self,
@@ -39,7 +40,10 @@ impl VoiceList {
         osc_params: &OscParamsBatch,
         velocity: f32,
         voice_params: VoiceParams,
+        bend_range: f32,
     ) {
+        let mut osc_params = &mut osc_params.clone();
+        osc_params.coarse += f32x8::splat(self.pitch_bend * bend_range);
         if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
             *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
         } else {
@@ -92,10 +96,12 @@ impl VoiceList {
             }
         }
     }
-    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
+    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams, bend_range: f32) {
+        let mut osc_params = osc_params.clone();
+        osc_params.coarse += f32x8::splat(self.pitch_bend * bend_range);
         for slot in self.voices.iter_mut() {
             if let Some(voice) = slot {
-                voice.block_update(osc_params, voice_params);
+                voice.block_update(&osc_params, voice_params);
             }
         }
     }
@@ -110,13 +116,14 @@ impl VoiceList {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Voice {
-    oscillators: OscillatorBatch,
-    midi_id: u8,
-    filter: Option<SvfSimper>,
-    time: u32,
-    released_time: Option<u32>,
-    amp_release_level: f32,
-    filter_release_level: f32,
+    pub oscillators: OscillatorBatch,
+    pub midi_id: u8,
+    pub pitch_bend: f32,
+    pub filter: Option<SvfSimper>,
+    pub time: u32,
+    pub released_time: Option<u32>,
+    pub amp_release_level: f32,
+    pub filter_release_level: f32,
 }
 impl Voice {
     pub fn play(
@@ -147,6 +154,7 @@ impl Voice {
         Self {
             oscillators: OscillatorBatch::new(midi_id, osc_params, velocity),
             midi_id,
+            pitch_bend: 0.0,
             filter: if voice_params.filter_enabled {
                 let mut filter = SvfSimper::new(
                     Voice::calc_filter_cutoff(
@@ -198,7 +206,9 @@ impl Voice {
             }
     }
     pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
-        self.oscillators.update_pitch(osc_params);
+        let mut osc_params = osc_params.clone();
+        osc_params.coarse += f32x8::splat(self.pitch_bend);
+        self.oscillators.update_pitch(&osc_params);
     }
     pub fn sample_update(&mut self, _params: &OscParamsBatch, voice_params: VoiceParams) {
         if voice_params.filter_enabled {
@@ -435,8 +445,14 @@ impl Waveshaper {
                 (x*(amount*50.0 + 1.0)).min(1.0)
             },
             Waveshaper::FullRectify => {
-                let amount = 1.0 - amount;
-                (x + amount).abs() - amount
+                // phase distortion
+                (
+                    if x <= amount {
+                        x * (amount * 2.0).recip()
+                    } else {
+                        0.5 + (x - amount)/(-amount * 2.0 + 2.0)
+                    }
+                ).min(1.0)
             },
             Waveshaper::HardClip => {
                 x.max(-1.0 + amount).min(1.0 - amount)

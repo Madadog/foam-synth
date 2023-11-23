@@ -210,7 +210,7 @@ impl canvas::Program<Message> for EnvelopeWidget {
 
         frame.stroke(
             &time_path,
-            canvas::Stroke::default().with_color(Color::from_rgba8(0, 0, 0, 0.2)),
+            canvas::Stroke::default().with_color(Color::from_rgba8(0, 0, 0, 0.3)),
         );
         frame.fill(
             &fill_path,
@@ -308,13 +308,11 @@ struct SynthPluginEditor {
     params: Arc<SynthPluginParams>,
     context: Arc<dyn GuiContext>,
 
-    gain_slider_state: param_slider::State,
-    global_coarse_slider_state: param_slider::State,
-    octave_stretch_slider_state: param_slider::State,
     scrollable: widget::scrollable::State,
 
     filter_params: FilterWidget,
     global_envelope: GlobalEnvelopeWidget,
+    global_params: GlobalParamWidget,
 
     osc_params_1: OscillatorWidget,
     osc_params_2: OscillatorWidget,
@@ -349,13 +347,11 @@ impl IcedEditor for SynthPluginEditor {
             params,
             context,
 
-            gain_slider_state: Default::default(),
-            global_coarse_slider_state: Default::default(),
-            octave_stretch_slider_state: Default::default(),
             scrollable: Default::default(),
 
             filter_params: Default::default(),
             global_envelope: Default::default(),
+            global_params: Default::default(),
 
             osc_params_1: OscillatorWidget::new(0),
             osc_params_2: OscillatorWidget::new(1),
@@ -366,7 +362,6 @@ impl IcedEditor for SynthPluginEditor {
             osc_params_7: OscillatorWidget::new(6),
             osc_params_8: OscillatorWidget::new(7),
 
-            // canvas: Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)),
             matrix: Default::default(),
         };
 
@@ -393,64 +388,14 @@ impl IcedEditor for SynthPluginEditor {
         Scrollable::new(&mut self.scrollable)
             .width(Length::Fill)
             .align_items(Alignment::Center)
-            // .push(Image::new(image::Handle::from_pixels(2, 2, vec![0, 0, 0, 255])))
             .push(
                 Row::new()
                     .padding(Padding::from(10))
-                    .spacing(20)
+                    .spacing(26)
                     .push(self.matrix.fm_matrix(&self.params))
                     .push(self.filter_params.ui(&self.params))
                     .push(self.global_envelope.ui(&self.params))
-                    // .push(Canvas::new(CanvasTest::new(1.0, 1.0, 0.5, 1.0)))
-                    .push(
-                        title_bar()
-                            .push(Space::with_height(10.into()))
-                            .push(
-                                Text::new("Output Gain")
-                                    .size(16)
-                                    .width(100.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
-                            .push(
-                                ParamSlider::new(&mut self.gain_slider_state, &self.params.gain)
-                                    .height(20.into())
-                                    .width(100.into())
-                                    .map(Message::ParamUpdate),
-                            )
-                            .push(
-                                Text::new("Global Coarse")
-                                    .size(16)
-                                    .width(100.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
-                            .push(
-                                ParamSlider::new(
-                                    &mut self.global_coarse_slider_state,
-                                    &self.params.global_coarse,
-                                )
-                                .height(20.into())
-                                .width(100.into())
-                                .map(Message::ParamUpdate),
-                            )
-                            .push(
-                                Text::new("Octave Stretch")
-                                    .size(16)
-                                    .width(100.into())
-                                    .horizontal_alignment(alignment::Horizontal::Center)
-                                    .vertical_alignment(alignment::Vertical::Center),
-                            )
-                            .push(
-                                ParamSlider::new(
-                                    &mut self.octave_stretch_slider_state,
-                                    &self.params.octave_stretch,
-                                )
-                                .height(20.into())
-                                .width(100.into())
-                                .map(Message::ParamUpdate),
-                            ),
-                    ),
+                    .push(self.global_params.ui(&self.params)),
             )
             .push(
                 Row::new().push(
@@ -962,7 +907,7 @@ impl MatrixWidget {
         let slider_width = 30;
         let slider_height = 14;
         let slider_font_size = 12;
-        let spacing = 4;
+        let spacing = 2;
         Column::new()
             .spacing(spacing)
             .push(
@@ -1155,7 +1100,6 @@ impl FilterWidget {
         let font_size = 14;
         Column::new()
             .max_width(200)
-            // .push(Space::with_height(20.into()))
             .push(
                 Text::new("Filter")
                     .size(18)
@@ -1164,7 +1108,6 @@ impl FilterWidget {
             )
             .push(
                 Row::new()
-                    // .spacing(10)
                     .push(
                         Column::new()
                             .max_width(90)
@@ -1362,6 +1305,59 @@ impl GlobalEnvelopeWidget {
                                     .map(Message::ParamUpdate),
                             ),
                     ),
+            )
+    }
+}
+
+#[derive(Default)]
+struct GlobalParamWidget {
+    gain_slider_state: param_slider::State,
+    global_coarse_slider_state: param_slider::State,
+    octave_stretch_slider_state: param_slider::State,
+    bend_range_slider_state: param_slider::State,
+}
+impl GlobalParamWidget {
+    fn ui<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
+        let slider_height: Length = 14.into();
+        let slider_width: Length = 60.into();
+        let slider_font_size = 14;
+        let font_size = 14;
+        title_bar()
+            .push(Space::with_height(14.into()))
+            .push(Text::new("Output Gain").size(font_size))
+            .push(
+                ParamSlider::new(&mut self.gain_slider_state, &params.gain)
+                    .height(slider_height)
+                    .width(slider_width)
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(Text::new("Global Coarse").size(font_size))
+            .push(
+                ParamSlider::new(&mut self.global_coarse_slider_state, &params.global_coarse)
+                    .height(slider_height)
+                    .width(slider_width)
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
+            )
+            .push(Text::new("Octave Stretch").size(font_size))
+            .push(
+                ParamSlider::new(
+                    &mut self.octave_stretch_slider_state,
+                    &params.octave_stretch,
+                )
+                .height(slider_height)
+                .width(slider_width)
+                .text_size(slider_font_size)
+                .map(Message::ParamUpdate),
+            )
+            .push(Text::new("Bend Range").size(font_size))
+            .push(
+                ParamSlider::new(&mut self.bend_range_slider_state, &params.bend_range)
+                    .height(slider_height)
+                    .width(slider_width)
+                    .text_size(slider_font_size)
+                    .map(Message::ParamUpdate),
             )
     }
 }

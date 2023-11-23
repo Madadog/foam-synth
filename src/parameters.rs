@@ -318,6 +318,8 @@ pub struct SynthPluginParams {
     pub global_coarse: FloatParam,
     #[id = "octave_multiplier"]
     pub octave_stretch: FloatParam,
+    #[id = "bend_range"]
+    pub bend_range: FloatParam,
 
     #[nested(group = "mod", id_prefix = "mod_osc1_")]
     pub osc1_fm_mod: OscMod,
@@ -428,6 +430,15 @@ impl Default for SynthPluginParams {
                     max: 1.01,
                 },
             ),
+            bend_range: FloatParam::new(
+                "Bend Range",
+                2.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 48.0,
+                },
+            )
+            .with_step_size(1.0),
 
             osc1_fm_mod: OscMod::new(1),
             osc2_fm_mod: OscMod::new(2),
