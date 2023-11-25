@@ -485,11 +485,9 @@ impl Default for SynthPluginParams {
             filter_envelope_amount: FloatParam::new(
                 "Filter Env. Amount",
                 0.0,
-                FloatRange::SymmetricalSkewed {
+                FloatRange::Linear {
                     min: -1.0,
                     max: 1.0,
-                    factor: FloatRange::skew_factor(-2.0),
-                    center: 0.0,
                 },
             ),
             filter_envelope_attack: FloatParam::new("Filter Env. Attack", 0.0, ATTACK_DECAY_RANGE)

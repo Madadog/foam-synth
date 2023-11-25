@@ -77,7 +77,6 @@ The following file/s are additionally available under the ISC license (indicated
 ## TODO:
 
 * DSP:
-    * Log scaling for filter modulation (not linear)
     * Legato, portamento
     * Add noise source somewhere
     * Bandlimited oscillator toggle / multiple waves

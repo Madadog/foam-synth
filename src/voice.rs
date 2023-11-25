@@ -20,7 +20,10 @@ pub struct VoiceList {
 
 impl VoiceList {
     pub fn new() -> Self {
-        Self { voices: [None; 32], pitch_bend: 0.0 }
+        Self {
+            voices: [None; 32],
+            pitch_bend: 0.0,
+        }
     }
     pub fn play(
         &mut self,
@@ -96,7 +99,12 @@ impl VoiceList {
             }
         }
     }
-    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams, bend_range: f32) {
+    pub fn block_update(
+        &mut self,
+        osc_params: &OscParamsBatch,
+        voice_params: VoiceParams,
+        bend_range: f32,
+    ) {
         let mut osc_params = osc_params.clone();
         osc_params.coarse += f32x8::splat(self.pitch_bend * bend_range);
         for slot in self.voices.iter_mut() {
@@ -183,7 +191,20 @@ impl Voice {
         }
     }
     pub fn release(&mut self, params: &OscParamsBatch, voice_params: &VoiceParams) {
-        self.amp_release_level = self.calc_amp_envelope(voice_params);
+        self.amp_release_level = envelope(
+            voice_params.sample_rate,
+            self.time,
+            voice_params.global_attack,
+            voice_params.global_decay,
+            voice_params.global_sustain,
+        );
+        self.filter_release_level = envelope(
+            voice_params.sample_rate,
+            self.time,
+            voice_params.filter_attack,
+            voice_params.filter_decay,
+            voice_params.filter_sustain,
+        );
         self.oscillators.release(params);
         self.released_time = Some(self.time);
     }
@@ -269,9 +290,15 @@ impl Voice {
         }
     }
     fn calc_filter_cutoff(midi_id: u8, voice_params: &VoiceParams, envelope: f32) -> f32 {
-        let keyscaling = 2.0f32.powf((midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0);
-        (voice_params.filter_cutoff * keyscaling
-            + voice_params.filter_envelope_amount * 22000.0 * envelope.powi(2))
+        // let keyscaling = 2.0f32.powf((midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0);
+        let keyscaling = (midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0;
+
+        (440.0
+            * 2.0f32.powf(
+                (voice_params.filter_cutoff / 440.0).log2()
+                    + keyscaling
+                    + voice_params.filter_envelope_amount * 11.0 * envelope,
+            ))
         .clamp(20.0, 22000.0)
     }
 }
@@ -355,6 +382,7 @@ pub enum Waveshaper {
     FullRectify,
     HardClip,
     HardGate,
+    HardClamp,
 }
 impl Waveshaper {
     /// `x` should be between -1 and +1, `amount` should be between 0 and 1
@@ -364,46 +392,49 @@ impl Waveshaper {
             Waveshaper::Power => {
                 let amount = amount * 200.0 + 1.0;
                 x.abs().powf(amount) * x.signum()
-            },
+            }
             Waveshaper::InversePower => {
                 let amount = amount * 20.0 + 1.0;
                 x.abs().powf(1.0 / amount) * x.signum()
-            },
+            }
             Waveshaper::BiasedPower => {
                 let amount = amount * 400.0 + 1.0;
                 (x * 0.5 + 0.5).powf(amount) * 2.0 - 1.0
-            },
+            }
             Waveshaper::BiasedInversePower => {
                 let amount = amount * 8.0 + 1.0;
                 (x * 0.5 + 0.5).powf(1.0 / amount) * 2.0 - 1.0
-            },
+            }
             Waveshaper::Sync => {
                 let amount = amount * 20.0 + 1.0;
                 (x * 0.999999 * amount).fract()
-            },
+            }
             Waveshaper::Sine => {
                 let amount = amount * 100.0 + 1.0;
                 (x * amount).sin()
-            },
+            }
             Waveshaper::Quantize => {
                 let amount = 1.0 - amount;
                 let amount = (amount * amount) * 100.0 + 1.0;
                 (x * amount).round() / amount
             }
-            Waveshaper::HalfRectify => {
-                x.max(-1.0 + amount)
-            },
+            Waveshaper::HalfRectify => x.max(-1.0 + amount),
             Waveshaper::FullRectify => {
                 let amount = 1.0 - amount;
                 (x + amount).abs() - amount
-            },
-            Waveshaper::HardClip => {
-                x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount)
-            },
+            }
+            Waveshaper::HardClip => x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount),
             Waveshaper::HardGate => {
                 let amount = amount * 0.99;
                 (x.abs().max(amount) - amount) * x.signum() / (1.0 - amount)
-            },
+            }
+            Waveshaper::HardClamp => {
+                if x.abs() > amount {
+                    x
+                } else {
+                    0.0
+                }
+            }
         }
     }
     /// `x` should be between 0 and +1, `amount` should be between 0 and 1
@@ -423,43 +454,37 @@ impl Waveshaper {
             Waveshaper::BiasedPower => {
                 let amount = amount * 50.0 + 1.0;
                 x.powf(amount)
-            },
+            }
             Waveshaper::BiasedInversePower => {
                 let amount = amount * 50.0 + 1.0;
                 x.powf(1.0 / amount)
-            },
+            }
             Waveshaper::Sync => {
                 let amount = amount * 50.0 + 1.0;
                 (x * 0.999999 * amount).fract()
-            },
+            }
             Waveshaper::Sine => {
                 let amount = amount * 50.0 + 1.0;
                 (x * amount).sin()
-            },
+            }
             Waveshaper::Quantize => {
                 let amount = 1.0 - amount;
                 let amount = (amount * amount) * 100.0 + 1.0;
                 (x * (amount + 1.0)).round() / amount
-            },
-            Waveshaper::HalfRectify => {
-                (x*(amount*50.0 + 1.0)).min(1.0)
-            },
+            }
+            Waveshaper::HalfRectify => (x * (amount * 50.0 + 1.0)).min(1.0),
             Waveshaper::FullRectify => {
                 // phase distortion
-                (
-                    if x <= amount {
-                        x * (amount * 2.0).recip()
-                    } else {
-                        0.5 + (x - amount)/(-amount * 2.0 + 2.0)
-                    }
-                ).min(1.0)
-            },
-            Waveshaper::HardClip => {
-                x.max(-1.0 + amount).min(1.0 - amount)
-            },
-            Waveshaper::HardGate => {
-                x.abs().max(amount) - amount
-            },
+                (if x <= amount {
+                    x * (amount * 2.0).recip()
+                } else {
+                    0.5 + (x - amount) / (-amount * 2.0 + 2.0)
+                })
+                .min(1.0)
+            }
+            Waveshaper::HardClip => x.max(-1.0 + amount).min(1.0 - amount),
+            Waveshaper::HardGate => x.abs().max(amount) - amount,
+            Waveshaper::HardClamp => x.max(amount),
         }
     }
     pub fn waveshape_batch(&self, x: f32x8, amount: f32x8) -> f32x8 {
@@ -472,11 +497,12 @@ impl Waveshaper {
             Waveshaper::Sync => {
                 // ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
                 x
-            },
+            }
             Waveshaper::Sine => (x * amount).sin(),
             Waveshaper::Quantize => {
                 let amount = (201.0 - amount) * 0.5;
-                (x * f32x8::splat(2.0).pow_f32x8(amount)).round() / (f32x8::splat(2.0).pow_f32x8(amount) + 1.0)
+                (x * f32x8::splat(2.0).pow_f32x8(amount)).round()
+                    / (f32x8::splat(2.0).pow_f32x8(amount) + 1.0)
             }
             _ => todo!(),
         }
@@ -920,7 +946,11 @@ impl PolyFoam {
             let phase = phaseshaper.waveshape_batch(phase, params.phaseshaper_amount);
             let wave = wave.calculate_sine(phase);
             let wave = waveshaper.waveshape_batch(wave, params.waveshaper_amount);
-            let envelope = envelope.envelope(&params, self.time.round_float(), self.release_time.round_float());
+            let envelope = envelope.envelope(
+                &params,
+                self.time.round_float(),
+                self.release_time.round_float(),
+            );
             self.last_oscillator_output = wave * envelope;
         }
         self.last_oscillator_output
