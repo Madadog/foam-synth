@@ -18,6 +18,20 @@ pub mod interpolation {
         lerp(b1, b2, t)
     }
 
+    pub fn hermite(p: (f32, f32, f32, f32), t: f32) -> f32 {
+        let slope = (
+            (p.2 - p.0) * 0.5,
+            (p.3 - p.1) * 0.5,
+        );
+        let v = p.1 - p.2;
+        let w = slope.0 + v;
+        let a = w + v + slope.1;
+        let b_neg = w + a;
+        let stage1 = a * t - b_neg;
+        let stage2 = stage1 * t + slope.0;
+        stage2 * t + p.1
+    }
+
     // pub fn lanczos()
 
     mod test {
