@@ -94,7 +94,9 @@ The following file/s are additionally available under the ISC license (indicated
     * Toggle oscillators on/off
     * Allow use of the filter in FM modulation
     * Allow picking keyscaling root key
-    * Scala support?
+    * Linear & log keyscaling
+    * Toggle oscillator keytracking
+    * Scala support
     * 8/16/24 bit integer FM calcs from Dexed? (for speed)
     * Optimize
         * Enforce a minimum (constant?) block size

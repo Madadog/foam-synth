@@ -323,8 +323,6 @@ struct SynthPluginEditor {
     osc_params_7: OscillatorWidget,
     osc_params_8: OscillatorWidget,
 
-    // canvas: Canvas<Message, CanvasTest>,
-    // canvas_cache: Arc<Cache>,
     matrix: MatrixWidget,
 }
 
@@ -774,9 +772,8 @@ impl OscillatorWidget {
 fn title_bar<'a>() -> Column<'a, Message> {
     Column::new()
         .align_items(Alignment::Start)
-        .max_width(150)
         .push(
-            Text::new("Foam Synth GUI")
+            Text::new("Foam FM Synth")
                 .font(assets::NOTO_SANS_LIGHT)
                 .size(20)
                 .horizontal_alignment(alignment::Horizontal::Center)

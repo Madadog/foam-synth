@@ -13,6 +13,14 @@ use crate::{
     svf_simper::{FilterType, SvfSimper, SvfSimperBatch},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Default, Enum)]
+pub enum LegatoMode {
+    #[default]
+    Off,
+    On,
+}
+
+
 pub struct VoiceList {
     pub voices: [Option<Voice>; 32],
     pub pitch_bend: f32,
@@ -346,7 +354,7 @@ pub struct OscParams {
     pub octave_stretch: f32,
     pub waveshaper: Waveshaper,
     pub waveshaper_amount: f32,
-    pub phaseshaper: Waveshaper,
+    pub phaseshaper: Phaseshaper,
     pub phaseshaper_amount: f32,
 }
 
@@ -375,11 +383,13 @@ pub enum Waveshaper {
     InversePower,
     BiasedPower,
     BiasedInversePower,
-    Sync,
+    Wrap,
+    HalfWrap,
     Sine,
     Quantize,
     HalfRectify,
     FullRectify,
+    LinearBend,
     HardClip,
     HardGate,
     HardClamp,
@@ -405,9 +415,13 @@ impl Waveshaper {
                 let amount = amount * 8.0 + 1.0;
                 (x * 0.5 + 0.5).powf(1.0 / amount) * 2.0 - 1.0
             }
-            Waveshaper::Sync => {
-                let amount = amount * 20.0 + 1.0;
-                (x * 0.999999 * amount).fract()
+            Waveshaper::Wrap => {
+                let amount = amount * 20.0 + 0.999999;
+                (((x.abs() * 0.5 + (0.5/amount))*amount).fract() - 0.5) * 2.0 * x.signum()
+            }
+            Waveshaper::HalfWrap => {
+                let amount = amount * 20.0 + 0.999999;
+                (x * amount).fract()
             }
             Waveshaper::Sine => {
                 let amount = amount * 100.0 + 1.0;
@@ -415,13 +429,23 @@ impl Waveshaper {
             }
             Waveshaper::Quantize => {
                 let amount = 1.0 - amount;
-                let amount = (amount * amount) * 100.0 + 1.0;
-                (x * amount).round() / amount
+                let amount = (amount * amount) * 100.0 + 0.49;
+                (x * amount).round() / amount.max(1.0)
             }
             Waveshaper::HalfRectify => x.max(-1.0 + amount),
             Waveshaper::FullRectify => {
                 let amount = 1.0 - amount;
                 (x + amount).abs() - amount
+            }
+            Waveshaper::LinearBend => {
+                let x = (x + 1.0) * 0.5;
+                let amount = amount.clamp(0.01, 0.99);
+                (if x <= amount {
+                    x * (amount * 2.0).recip()
+                } else {
+                    0.5 + (x - amount) / (-amount * 2.0 + 2.0)
+                })
+                * 2.0 - 1.0
             }
             Waveshaper::HardClip => x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount),
             Waveshaper::HardGate => {
@@ -437,56 +461,6 @@ impl Waveshaper {
             }
         }
     }
-    /// `x` should be between 0 and +1, `amount` should be between 0 and 1
-    pub fn phaseshape(&self, x: f32, amount: f32) -> f32 {
-        match self {
-            Waveshaper::None => x,
-            Waveshaper::Power => {
-                let amount = amount * 50.0 + 1.0;
-                let bipolar = x * 2.0 - 1.0;
-                (bipolar.abs().powf(amount) * bipolar.signum() + 1.0) * 0.5
-            }
-            Waveshaper::InversePower => {
-                let amount = amount * 50.0 + 1.0;
-                let bipolar = x * 2.0 - 1.0;
-                (bipolar.abs().powf(1.0 / amount) * bipolar.signum() + 1.0) * 0.5
-            }
-            Waveshaper::BiasedPower => {
-                let amount = amount * 50.0 + 1.0;
-                x.powf(amount)
-            }
-            Waveshaper::BiasedInversePower => {
-                let amount = amount * 50.0 + 1.0;
-                x.powf(1.0 / amount)
-            }
-            Waveshaper::Sync => {
-                let amount = amount * 50.0 + 1.0;
-                (x * 0.999999 * amount).fract()
-            }
-            Waveshaper::Sine => {
-                let amount = amount * 50.0 + 1.0;
-                (x * amount).sin()
-            }
-            Waveshaper::Quantize => {
-                let amount = 1.0 - amount;
-                let amount = (amount * amount) * 100.0 + 1.0;
-                (x * (amount + 1.0)).round() / amount
-            }
-            Waveshaper::HalfRectify => (x * (amount * 50.0 + 1.0)).min(1.0),
-            Waveshaper::FullRectify => {
-                // phase distortion
-                (if x <= amount {
-                    x * (amount * 2.0).recip()
-                } else {
-                    0.5 + (x - amount) / (-amount * 2.0 + 2.0)
-                })
-                .min(1.0)
-            }
-            Waveshaper::HardClip => x.max(-1.0 + amount).min(1.0 - amount),
-            Waveshaper::HardGate => x.abs().max(amount) - amount,
-            Waveshaper::HardClamp => x.max(amount),
-        }
-    }
     pub fn waveshape_batch(&self, x: f32x8, amount: f32x8) -> f32x8 {
         match self {
             Waveshaper::None => x,
@@ -494,10 +468,6 @@ impl Waveshaper {
             Waveshaper::InversePower => x.abs().pow_f32x8(1.0 / amount) ^ x.sign_bit(),
             Waveshaper::BiasedPower => (x * 0.5 + 0.5).pow_f32x8(amount) * 2.0 - 1.0,
             Waveshaper::BiasedInversePower => (x * 0.5 + 0.5).pow_f32x8(1.0 / amount) * 2.0 - 1.0,
-            Waveshaper::Sync => {
-                // ((x * 0.999999 * amount) % 1.0) * 2.0 - 1.0
-                x
-            }
             Waveshaper::Sine => (x * amount).sin(),
             Waveshaper::Quantize => {
                 let amount = (201.0 - amount) * 0.5;
@@ -505,6 +475,80 @@ impl Waveshaper {
                     / (f32x8::splat(2.0).pow_f32x8(amount) + 1.0)
             }
             _ => todo!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Enum)]
+pub enum Phaseshaper {
+    #[default]
+    None,
+    Power,
+    InversePower,
+    BiasedPower,
+    BiasedInversePower,
+    Sync,
+    DoubleSync,
+    Sine,
+    Quantize,
+    Formant,
+    LinearBend,
+    HardClip,
+    HardGate,
+    HardClamp,
+}
+impl Phaseshaper {
+    /// `x` should be between 0 and +1, `amount` should be between 0 and 1
+    pub fn phaseshape(&self, x: f32, amount: f32) -> f32 {
+        match self {
+            Phaseshaper::None => x,
+            Phaseshaper::Power => {
+                let amount = amount * 50.0 + 1.0;
+                let bipolar = x * 2.0 - 1.0;
+                (bipolar.abs().powf(amount) * bipolar.signum() + 1.0) * 0.5
+            }
+            Phaseshaper::InversePower => {
+                let amount = amount * 50.0 + 1.0;
+                let bipolar = x * 2.0 - 1.0;
+                (bipolar.abs().powf(1.0 / amount) * bipolar.signum() + 1.0) * 0.5
+            }
+            Phaseshaper::BiasedPower => {
+                let amount = amount * 50.0 + 1.0;
+                x.powf(amount)
+            }
+            Phaseshaper::BiasedInversePower => {
+                let amount = amount * 50.0 + 1.0;
+                x.powf(1.0 / amount)
+            }
+            Phaseshaper::Sync => {
+                let amount = amount * 50.0 + 0.999999;
+                (x * amount).fract()
+            }
+            Phaseshaper::DoubleSync => {
+                let amount = amount * 50.0 + 0.999999;
+                (((x - 0.5) * amount) + 0.5).fract()
+            }
+            Phaseshaper::Sine => {
+                let amount = amount * 50.0 + PI / 2.0;
+                (x * amount).sin()
+            }
+            Phaseshaper::Quantize => {
+                let amount = 1.0 - amount;
+                let amount = (amount * amount) * 100.0 + 1.0;
+                (x * (amount + 1.0)).round() / amount
+            }
+            Phaseshaper::Formant => (x * (amount * 50.0 + 1.0)).min(1.0),
+            Phaseshaper::LinearBend => {
+                (if x <= amount {
+                    x * (amount * 2.0).recip()
+                } else {
+                    0.5 + (x - amount) / (-amount * 2.0 + 2.0)
+                })
+                .min(1.0)
+            }
+            Phaseshaper::HardClip => x.max(-1.0 + amount).min(1.0 - amount),
+            Phaseshaper::HardGate => x.abs().max(amount) - amount,
+            Phaseshaper::HardClamp => x.max(amount),
         }
     }
 }
@@ -533,7 +577,7 @@ pub struct OscParamsBatch {
     pub octave_stretch: f32x8,
     pub waveshaper: [Waveshaper; 8],
     pub waveshaper_amount: f32x8,
-    pub phaseshaper: [Waveshaper; 8],
+    pub phaseshaper: [Phaseshaper; 8],
     pub phaseshaper_amount: f32x8,
 }
 macro_rules! aos_to_soa {

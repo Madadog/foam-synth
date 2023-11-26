@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::editor;
 use crate::svf_simper::FilterType;
-use crate::voice::Waveshaper;
+use crate::voice::{LegatoMode, Phaseshaper, Waveshaper};
 
 const ATTACK_DECAY_RANGE: FloatRange = FloatRange::Skewed {
     min: 0.0,
@@ -75,7 +75,7 @@ pub struct OscillatorParams {
     #[id = "waveshaper_amount"]
     pub waveshaper_amount: FloatParam,
     #[id = "phaseshaper"]
-    pub phaseshaper: EnumParam<Waveshaper>,
+    pub phaseshaper: EnumParam<Phaseshaper>,
     #[id = "phaseshaper_amount"]
     pub phaseshaper_amount: FloatParam,
 }
@@ -90,6 +90,7 @@ impl OscillatorParams {
                     max: 100.0,
                 },
             )
+            .with_unit("%")
             .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
             coarse: FloatParam::new(
                 format!("Osc{} Coarse", index + 1),
@@ -114,12 +115,14 @@ impl OscillatorParams {
                 1.0,
                 FREQ_MULT_DIV_RANGE,
             )
+            .with_unit("x")
             .with_step_size(1.0),
             freq_div: FloatParam::new(
                 format!("Osc{} Freq Div", index + 1),
                 1.0,
                 FREQ_MULT_DIV_RANGE,
             )
+            .with_unit("x")
             .with_step_size(1.0),
             hz_detune: FloatParam::new(
                 format!("Osc{} +/- Hz", index + 1),
@@ -140,6 +143,7 @@ impl OscillatorParams {
                     max: 180.0,
                 },
             )
+            .with_unit("\u{00B0}")
             .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
             phase_rand: FloatParam::new(
                 format!("Osc{} Phase Rand", index + 1),
@@ -148,7 +152,8 @@ impl OscillatorParams {
                     min: 0.0,
                     max: 100.0,
                 },
-            ),
+            )
+            .with_unit("%"),
             attack_level: FloatParam::new(
                 format!("Osc{} Atk. Level", index + 1),
                 0.0,
@@ -209,8 +214,9 @@ impl OscillatorParams {
                     factor: 0.5,
                 },
             )
+            .with_unit("%")
             .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
-            phaseshaper: EnumParam::new(format!("Osc{} Phaseshaper", index + 1), Waveshaper::None),
+            phaseshaper: EnumParam::new(format!("Osc{} Phaseshaper", index + 1), Phaseshaper::None),
             phaseshaper_amount: FloatParam::new(
                 format!("Osc{} Phaseshape Amount", index + 1),
                 0.0,
@@ -220,6 +226,7 @@ impl OscillatorParams {
                     factor: 0.5,
                 },
             )
+            .with_unit("%")
             .with_smoother(SmoothingStyle::Linear(SMOOTH_TIME)),
         }
     }
@@ -429,7 +436,8 @@ impl Default for SynthPluginParams {
                     min: 0.99,
                     max: 1.01,
                 },
-            ),
+            )
+            .with_unit("x"),
             bend_range: FloatParam::new(
                 "Bend Range",
                 2.0,
@@ -468,7 +476,8 @@ impl Default for SynthPluginParams {
                     max: 22000.0,
                     factor: FloatRange::skew_factor(-2.0),
                 },
-            ),
+            )
+            .with_unit(" Hz"),
             filter_resonance: FloatParam::new(
                 "Filter Resonance",
                 0.3,
