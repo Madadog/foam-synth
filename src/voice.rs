@@ -3,7 +3,7 @@ use std::{
     f32::consts::{PI, TAU},
 };
 
-use itertools::izip;
+use itertools::{izip, Itertools};
 use nih_plug::params::enums::Enum;
 // use wide::{f32x8, u32x8, CmpLe};
 use wide::*;
@@ -20,17 +20,124 @@ pub enum LegatoMode {
     On,
 }
 
+#[derive(Default, Debug, Clone, Copy)]
+pub struct MidiNote {
+    pub midi_index: u8,
+    pub velocity: f32,
+    pub age: u32,
+    pub id: u64,
+    pub has_voice: bool,
+}
 
-pub struct VoiceList {
-    pub voices: [Option<Voice>; 32],
+/// Midi keys which are currently pressed.
+/// Two notes should not share the same id.
+pub struct Notes {
+    pub notes: Vec<MidiNote>,
+    pub note_id_increment: u64,
     pub pitch_bend: f32,
+    pub mod_wheel: f32,
+}
+
+impl Notes {
+    pub fn new() -> Self {
+        Self {
+            notes: Vec::with_capacity(128),
+            note_id_increment: 0,
+            pitch_bend: 0.0,
+            mod_wheel: 0.0,
+        }
+    }
+    pub fn add_note_with_id(&mut self, midi_index: u8, velocity: f32, id: u64) {
+        let note = MidiNote {
+            midi_index,
+            velocity,
+            age: 0,
+            id,
+            has_voice: true,
+        };
+        for note in self.notes.iter_mut() {
+            note.age += 1;
+        }
+        if self.notes.len() < 128 {
+            self.notes.push(note);
+        } else {
+            self.notes.sort_unstable_by_key(|note| note.age);
+            *self.notes.last_mut().unwrap() = note;
+        }
+    }
+    pub fn add_note(&mut self, midi_index: u8, velocity: f32) -> u64 {
+        self.note_id_increment += 1;
+        self.add_note_with_id(midi_index, velocity, self.note_id_increment);
+        self.note_id_increment
+    }
+    pub fn remove_note_by_id(&mut self, id: u64) {
+        if let Some((index, _)) = self.notes.iter().find_position(|note| note.id == id) {
+            self.notes.remove(index);
+        }
+    }
+    pub fn remove_note_by_midi(&mut self, midi_index: u8) -> Option<MidiNote> {
+        if let Some(note) = self
+            .notes
+            .iter()
+            .find(|note| note.midi_index == midi_index)
+        {
+            let note = note.clone();
+            self.remove_note_by_id(note.id);
+            return Some(note);
+        }
+        return None;
+    }
+    pub fn remove_notes_by_midi(&mut self, midi_index: u8) {
+        self.notes.retain(|note| note.midi_index != midi_index);
+    }
+    pub fn get_by_id(&mut self, id: u64) -> Option<&mut MidiNote> {
+        self.notes.iter_mut().find(|note| note.id == id)
+    }
+    pub fn get_newest_empty(&mut self) -> Option<&mut MidiNote> {
+        self.notes.iter_mut().filter(|x| !x.has_voice).reduce(
+            |acc, x| {
+                if x.age < acc.age {
+                    x
+                } else {
+                    acc
+                }
+            },
+        )
+    }
+}
+
+pub struct GlobalParams {
+    pub legato: LegatoMode,
+    pub voice_count: usize,
+    pub unison_count: usize,
+    pub unison_detune: f32,
+    pub bend_range: f32,
+}
+impl Default for GlobalParams {
+    fn default() -> Self {
+        Self {
+            legato: LegatoMode::Off,
+            voice_count: 32,
+            unison_count: 1,
+            unison_detune: 0.0,
+            bend_range: 2.0,
+        }
+    }
+}
+
+const MAX_VOICES: usize = 64;
+pub struct VoiceList {
+    pub voices: Vec<Voice>,
+    pub notes: Notes,
+    pub global_params: GlobalParams,
 }
 
 impl VoiceList {
     pub fn new() -> Self {
         Self {
-            voices: [None; 32],
-            pitch_bend: 0.0,
+            voices: Vec::with_capacity(MAX_VOICES),
+            notes: Notes::new(),
+            global_params: GlobalParams::default(),
         }
     }
     pub fn play(
@@ -41,91 +148,208 @@ impl VoiceList {
     ) -> f32 {
         self.voices
             .iter_mut()
-            .filter_map(|voice| voice.as_mut())
             .map(|v| v.play(osc_params, voice_params, pm_matrix))
             .sum()
     }
-    pub fn add_voice(
+    pub fn note_on(
         &mut self,
-        note: u8,
+        midi_index: u8,
         osc_params: &OscParamsBatch,
         velocity: f32,
         voice_params: VoiceParams,
-        bend_range: f32,
     ) {
-        let mut osc_params = &mut osc_params.clone();
-        osc_params.coarse += f32x8::splat(self.pitch_bend * bend_range);
-        if let Some(voice) = self.voices.iter_mut().find(|v| v.is_none()) {
-            *voice = Some(Voice::new(note, osc_params, velocity, voice_params));
-        } else {
-            let ((_, released), (_, unreleased)) = self.voices.iter_mut().flatten().fold(
-                ((0, None), (0, None)),
-                |(released, unreleased), voice| {
+        let note_id = self.notes.add_note(midi_index, velocity);
+        self.add_multiple_voices(midi_index, note_id, &osc_params, velocity, voice_params);
+    }
+    pub fn note_off(
+        &mut self,
+        midi_index: u8,
+        osc_params: &OscParamsBatch,
+        voice_params: &VoiceParams,
+    ) {
+        if let Some(note) = self.notes.remove_note_by_midi(midi_index) {
+            if note.has_voice {
+                if let Some(voiceless_note) = self.notes.get_newest_empty() {
+                    voiceless_note.has_voice = true;
+                    let mut osc_params = osc_params.clone();
+                    if self.global_params.unison_count > 1 {
+                        osc_params.phase_rand = f32x8::splat(1.0);
+                    };
+                    match self.global_params.legato {
+                        LegatoMode::Off => self
+                            .voices
+                            .iter_mut()
+                            .filter(|voice| voice.note_id == note.id)
+                            .for_each(|x| {
+                                *x = Voice::new(
+                                    voiceless_note.midi_index,
+                                    voiceless_note.id,
+                                    x.super_index,
+                                    &osc_params,
+                                    voiceless_note.velocity,
+                                    voice_params.clone(),
+                                )
+                            }),
+                        LegatoMode::On => self
+                        .voices
+                            .iter_mut()
+                            .filter(|voice| voice.note_id == note.id)
+                            .for_each(|voice| {
+                                voice.midi_id = voiceless_note.midi_index;
+                                voice.note_id = voiceless_note.id;
+                                voice.oscillators.midi_id = voiceless_note.midi_index;
+                                voice.age = 0;
+                                voice.released_time = None;
+                                voice.oscillators.release_time = None;
+                            }),
+                    }
+                    return;
+                }
+            }
+            self.release_voices_by_note(midi_index, osc_params, voice_params);
+            
+        }
+    }
+    pub fn add_multiple_voices(
+        &mut self,
+        midi_index: u8,
+        note_id: u64,
+        osc_params: &OscParamsBatch,
+        velocity: f32,
+        voice_params: VoiceParams,
+    ) {
+        let mut osc_params = osc_params.clone();
+        if self.global_params.unison_count > 1 {
+            osc_params.phase_rand = f32x8::splat(1.0);
+        };
+        for i in 0..self.global_params.unison_count.min(self.global_params.voice_count) {
+            self.add_voice(midi_index, note_id, osc_params, velocity, voice_params, i);
+        }
+    }
+    pub fn add_voice(
+        &mut self,
+        midi_index: u8,
+        note_id: u64,
+        mut osc_params: OscParamsBatch,
+        velocity: f32,
+        voice_params: VoiceParams,
+        super_index: usize,
+    ) {
+        self.voices.iter_mut().for_each(|voice| voice.age += 1);
+        osc_params.coarse += f32x8::splat(self.notes.pitch_bend * self.global_params.bend_range);
+        osc_params.coarse += f32x8::splat(
+            (super_index as f32) * self.global_params.unison_detune
+                / 100.0
+                / self.global_params.unison_count as f32
+                * ((super_index % 2) as f32 - 0.5)
+                * 2.0,
+        );
+        // Add new voice if we have space
+        if self.voices.len() < self.global_params.voice_count {
+            self.voices.push(Voice::new(
+                midi_index,
+                note_id,
+                super_index,
+                &osc_params,
+                velocity,
+                voice_params,
+            ));
+            return;
+        }
+        // If voices are full, find the oldest released and unreleased voices
+        let ((_, released), (_, unreleased)) =
+        self.voices
+                .iter_mut()
+                .fold(((0, None), (0, None)), |(released, unreleased), voice| {
                     if voice.is_released() {
-                        if voice.time >= released.0 {
-                            ((voice.time, Some(voice)), unreleased)
+                        if voice.age >= released.0 {
+                            ((voice.age, Some(voice)), unreleased)
                         } else {
                             (released, unreleased)
                         }
                     } else {
-                        if voice.time >= unreleased.0 {
-                            (released, (voice.time, Some(voice)))
+                        if voice.age >= unreleased.0 {
+                            (released, (voice.age, Some(voice)))
                         } else {
                             (released, unreleased)
                         }
                     }
-                },
-            );
-            if let Some(released) = released {
-                *released = Voice::new(note, osc_params, velocity, voice_params);
-            } else {
-                *unreleased.expect("Could not find any voice slots... Panicking!!!") =
-                    Voice::new(note, osc_params, velocity, voice_params);
+                });
+        // Replace the oldest released or unreleased voice
+        let stolen_voice = released.unwrap_or_else(|| unreleased.expect("Could not find any voice slots... Panicking!!!"));
+        if let Some(old_note) = self.notes.get_by_id(stolen_voice.note_id) {
+            old_note.has_voice = false;
+        }
+        match self.global_params.legato {
+            LegatoMode::Off => {
+                *stolen_voice = Voice::new(
+                    midi_index,
+                    note_id,
+                    super_index,
+                    &osc_params,
+                    velocity,
+                    voice_params,
+                );
+            }
+            LegatoMode::On => {
+                stolen_voice.midi_id = midi_index;
+                stolen_voice.note_id = note_id;
+                stolen_voice.oscillators.midi_id = midi_index;
+                stolen_voice.age = 0;
+                stolen_voice.released_time = None;
+                stolen_voice.oscillators.release_time = None;
             }
         }
     }
-    pub fn release_voice(
+    pub fn release_voices_by_note(
         &mut self,
         note: u8,
         osc_params: &OscParamsBatch,
         voice_params: &VoiceParams,
     ) {
-        for slot in self.voices.iter_mut() {
-            if let Some(voice) = slot {
-                if voice.midi_id == note {
-                    voice.release(osc_params, voice_params);
-                }
+        for voice in self.voices.iter_mut() {
+            if voice.midi_id == note && !voice.is_released() {
+                voice.release(osc_params, voice_params);
+            }
+        }
+    }
+    pub fn release_voice_by_id(
+        &mut self,
+        note_id: u64,
+        osc_params: &OscParamsBatch,
+        voice_params: &VoiceParams,
+    ) {
+        for voice in self.voices.iter_mut() {
+            if voice.note_id == note_id && !voice.is_released() {
+                voice.release(osc_params, voice_params);
             }
         }
     }
     pub fn remove_voices(&mut self, osc_params: &OscParamsBatch, voice_params: &VoiceParams) {
-        for slot in self.voices.iter_mut() {
-            if let Some(voice) = slot {
-                if voice.is_done(osc_params, voice_params) {
-                    *slot = None;
-                }
-            }
-        }
+        let old_len = self.voices.len();
+        self.voices
+        .retain(|voice| !voice.is_done(osc_params, voice_params));
+        let len = old_len - self.voices.len();
+        self.voices.iter_mut().for_each(|voice| voice.age -= len as u32);
     }
-    pub fn block_update(
-        &mut self,
-        osc_params: &OscParamsBatch,
-        voice_params: VoiceParams,
-        bend_range: f32,
-    ) {
-        let mut osc_params = osc_params.clone();
-        osc_params.coarse += f32x8::splat(self.pitch_bend * bend_range);
-        for slot in self.voices.iter_mut() {
-            if let Some(voice) = slot {
-                voice.block_update(&osc_params, voice_params);
-            }
+    pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
+        for voice in self.voices.iter_mut() {
+            let mut osc_params = osc_params.clone();
+            osc_params.coarse +=
+                f32x8::splat(self.notes.pitch_bend * self.global_params.bend_range);
+            osc_params.coarse += f32x8::splat(
+                (voice.super_index as f32) * self.global_params.unison_detune
+                    / 100.0
+                    / self.global_params.unison_count as f32
+                    * ((voice.super_index % 2) as f32 - 0.5)
+                    * 2.0,
+            );
+            voice.block_update(&osc_params, voice_params);
         }
     }
     pub fn sample_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
-        for slot in self.voices.iter_mut() {
-            if let Some(voice) = slot {
-                voice.sample_update(osc_params, voice_params);
-            }
+        for voice in self.voices.iter_mut() {
+            voice.sample_update(osc_params, voice_params);
         }
     }
 }
@@ -134,6 +358,9 @@ impl VoiceList {
 pub struct Voice {
     pub oscillators: OscillatorBatch,
     pub midi_id: u8,
+    pub note_id: u64,
+    pub age: u32,
+    pub super_index: usize,
     pub pitch_bend: f32,
     pub filter: Option<SvfSimper>,
     pub time: u32,
@@ -163,6 +390,8 @@ impl Voice {
     }
     pub fn new(
         midi_id: u8,
+        note_id: u64,
+        super_index: usize,
         osc_params: &OscParamsBatch,
         velocity: f32,
         voice_params: VoiceParams,
@@ -170,6 +399,9 @@ impl Voice {
         Self {
             oscillators: OscillatorBatch::new(midi_id, osc_params, velocity),
             midi_id,
+            note_id,
+            age: 0,
+            super_index,
             pitch_bend: 0.0,
             filter: if voice_params.filter_enabled {
                 let mut filter = SvfSimper::new(
@@ -226,7 +458,7 @@ impl Voice {
             None
         }
     }
-    pub fn is_done(&mut self, osc_params: &OscParamsBatch, voice_params: &VoiceParams) -> bool {
+    pub fn is_done(&self, osc_params: &OscParamsBatch, voice_params: &VoiceParams) -> bool {
         self.oscillators.is_done(osc_params)
             || if let Some(released_time) = self.time_since_release() {
                 (released_time as f32 / voice_params.sample_rate) >= voice_params.global_release
@@ -356,6 +588,7 @@ pub struct OscParams {
     pub waveshaper_amount: f32,
     pub phaseshaper: Phaseshaper,
     pub phaseshaper_amount: f32,
+    pub portamento_time: f32,
 }
 
 pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f32) -> f32 {
@@ -417,7 +650,7 @@ impl Waveshaper {
             }
             Waveshaper::Wrap => {
                 let amount = amount * 20.0 + 0.999999;
-                (((x.abs() * 0.5 + (0.5/amount))*amount).fract() - 0.5) * 2.0 * x.signum()
+                (((x.abs() * 0.5 + (0.5 / amount)) * amount).fract() - 0.5) * 2.0 * x.signum()
             }
             Waveshaper::HalfWrap => {
                 let amount = amount * 20.0 + 0.999999;
@@ -444,8 +677,8 @@ impl Waveshaper {
                     x * (amount * 2.0).recip()
                 } else {
                     0.5 + (x - amount) / (-amount * 2.0 + 2.0)
-                })
-                * 2.0 - 1.0
+                }) * 2.0
+                    - 1.0
             }
             Waveshaper::HardClip => x.max(-1.01 + amount).min(1.01 - amount) / (1.01 - amount),
             Waveshaper::HardGate => {
@@ -538,14 +771,12 @@ impl Phaseshaper {
                 (x * (amount + 1.0)).round() / amount
             }
             Phaseshaper::Formant => (x * (amount * 50.0 + 1.0)).min(1.0),
-            Phaseshaper::LinearBend => {
-                (if x <= amount {
-                    x * (amount * 2.0).recip()
-                } else {
-                    0.5 + (x - amount) / (-amount * 2.0 + 2.0)
-                })
-                .min(1.0)
-            }
+            Phaseshaper::LinearBend => (if x <= amount {
+                x * (amount * 2.0).recip()
+            } else {
+                0.5 + (x - amount) / (-amount * 2.0 + 2.0)
+            })
+            .min(1.0),
             Phaseshaper::HardClip => x.max(-1.0 + amount).min(1.0 - amount),
             Phaseshaper::HardGate => x.abs().max(amount) - amount,
             Phaseshaper::HardClamp => x.max(amount),
@@ -579,6 +810,7 @@ pub struct OscParamsBatch {
     pub waveshaper_amount: f32x8,
     pub phaseshaper: [Phaseshaper; 8],
     pub phaseshaper_amount: f32x8,
+    pub portamento_time: f32x8,
 }
 macro_rules! aos_to_soa {
     // The `tt` (token tree) designator is used for
@@ -623,6 +855,7 @@ impl From<[OscParams; 8]> for OscParamsBatch {
             waveshaper_amount: f32x8::from(aos_to_soa!(value, waveshaper_amount)),
             phaseshaper: aos_to_soa!(value, phaseshaper),
             phaseshaper_amount: f32x8::from(aos_to_soa!(value, phaseshaper_amount)),
+            portamento_time: f32x8::from(aos_to_soa!(value, portamento_time)),
         }
     }
 }
@@ -630,6 +863,8 @@ impl From<[OscParams; 8]> for OscParamsBatch {
 #[derive(Debug, Clone, Copy)]
 pub struct OscillatorBatch {
     pub frequency: f32x8,
+    pub target_frequency: f32x8,
+    frequency_lerp: f32x8,
     midi_id: u8,
     phase: f32x8,
     time: f32x8,
@@ -648,8 +883,10 @@ impl OscillatorBatch {
             .pow_f32x8(f32x8::splat(midi_id as f32 - 69.0) * -params.keyscaling / 12.0);
         Self {
             frequency,
+            target_frequency: frequency,
+            frequency_lerp: f32x8::splat(1.0),
             midi_id,
-            phase: f32x8::splat(0.0),
+            phase: 0.0 + params.phase_rand * fastrand::f32(),
             time: f32x8::splat(0.0),
             release_time: None,
             release_start_level: f32x8::splat(0.0),
@@ -745,10 +982,16 @@ impl OscillatorBatch {
             .fast_max(f32x8::splat(0.0))
     }
     pub fn update_pitch(&mut self, params: &OscParamsBatch) {
-        self.frequency = OscillatorBatch::get_pitch(self.midi_id, params);
+        self.frequency = self.get_lerped_frequency();
+        self.frequency_lerp = f32x8::splat(0.0);
+        self.target_frequency = OscillatorBatch::get_pitch(self.midi_id, params);
+    }
+    pub fn get_lerped_frequency(&self) -> f32x8 {
+        super::dsp::interpolation::lerpx8(self.frequency, self.target_frequency, self.frequency_lerp)
     }
     pub fn step(&mut self, params: &OscParamsBatch, pm: f32x8) -> f32x8 {
         self.time = self.time + 1.0;
+        self.frequency_lerp = (self.frequency_lerp + 1.0 / (params.portamento_time + 0.00001) / params.sample_rate).fast_min(f32x8::splat(1.0));
         // Feedback implementation from the Surge XT FM2/FM3/Sine oscillators, which in turn were based on the DX7 feedback
         let prev = (self.previous_wave[0] + self.previous_wave[1]) / 2.0;
         // let feedback = if params.feedback.is_sign_negative() {
@@ -793,7 +1036,7 @@ impl OscillatorBatch {
         };
         self.previous_wave[0] = out;
         self.add_phase(OscillatorBatch::calculate_delta(
-            self.frequency,
+            self.get_lerped_frequency(),
             params.sample_rate,
         ));
         out * self.gain

@@ -1,14 +1,14 @@
 use nih_plug::prelude::*;
 use parameters::SynthPluginParams;
 use std::sync::Arc;
-use voice::{OscParams, OscParamsBatch, VoiceList, VoiceParams};
+use voice::{GlobalParams, OscParams, OscParamsBatch, VoiceList, VoiceParams};
 use wide::f32x8;
 
+mod dsp;
 mod editor;
 mod parameters;
 mod svf_simper;
 mod voice;
-mod dsp;
 
 struct SynthPlugin {
     params: Arc<SynthPluginParams>,
@@ -93,35 +93,59 @@ impl Plugin for SynthPlugin {
         let mut next_event = context.next_event();
         let block_size = buffer.samples() as u32;
         let osc_params = [
-            self.params
-                .osc1_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc2_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc3_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc4_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc5_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc6_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc7_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
-            self.params
-                .osc8_params
-                .to_osc_params(self.sample_rate, self.params.octave_stretch.value(), block_size),
+            self.params.osc1_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc2_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc3_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc4_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc5_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc6_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc7_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
+            self.params.osc8_params.to_osc_params(
+                self.sample_rate,
+                self.params.octave_stretch.value(),
+                self.params.portamento.value(),
+                block_size,
+            ),
         ];
 
         let mut osc_params = OscParamsBatch::from(osc_params);
         osc_params.coarse += f32x8::splat(self.params.global_coarse.value());
-        
+
         let mut pm_matrix = [
             f32x8::from(self.params.osc1_fm_mod.to_array()),
             f32x8::from(self.params.osc2_fm_mod.to_array()),
@@ -150,36 +174,46 @@ impl Plugin for SynthPlugin {
             global_sustain: self.params.global_sustain.value(),
             global_release: self.params.global_release.value(),
         };
-        self.voices.block_update(&osc_params, voice_params, self.params.bend_range.value());
+        self.voices.global_params = GlobalParams {
+            legato: self.params.legato.value(),
+            voice_count: self.params.voice_count.value() as usize,
+            unison_count: self.params.unison_count.value() as usize,
+            unison_detune: self.params.unison_detune.value(),
+            bend_range: self.params.bend_range.value(),
+        };
+        self.voices.block_update(&osc_params, voice_params);
         for (sample_id, channel_samples) in buffer.iter_samples().enumerate() {
             // Smoothing is optionally built into the parameters themselves
             let gain = self.params.gain.smoothed.next();
-            
+
             while let Some(event) = next_event {
                 if event.timing() != sample_id as u32 {
                     // println!("Event at {sample_id}: {:?}", event);
                     break;
                 }
-                
+
                 match event {
                     NoteEvent::NoteOn { note, velocity, .. } => {
                         self.voices
-                        .add_voice(note, &osc_params, velocity, voice_params, self.params.bend_range.value());
+                            .note_on(note, &osc_params, velocity, voice_params);
                     }
                     NoteEvent::NoteOff { note, .. } => {
-                        // println!("Note off at {}/{sample_id}: {}", event.timing(), note);
-                        self.voices.release_voice(note, &osc_params, &voice_params);
+                        self.voices.note_off(note, &osc_params, &voice_params);
                     }
-                    NoteEvent::MidiPitchBend { timing, channel, value } => { 
+                    NoteEvent::MidiPitchBend {
+                        timing,
+                        channel,
+                        value,
+                    } => {
                         let value = (value - 0.5) * 2.0;
-                        self.voices.pitch_bend = value;
+                        self.voices.notes.pitch_bend = value;
                     }
                     _ => (),
                 }
-                
+
                 next_event = context.next_event();
             }
-            
+
             self.voices.sample_update(&osc_params, voice_params);
             let output = self.voices.play(&osc_params, &voice_params, pm_matrix);
 

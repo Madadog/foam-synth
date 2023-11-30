@@ -1,8 +1,8 @@
 use nih_plug::prelude::*;
 use nih_plug_iced::IcedState;
-use wide::f32x8;
 use std::f32::consts::PI;
 use std::sync::Arc;
+use wide::f32x8;
 
 use crate::editor;
 use crate::svf_simper::FilterType;
@@ -234,6 +234,7 @@ impl OscillatorParams {
         &self,
         sample_rate: f32,
         octave_stretch: f32,
+        portamento_time: f32,
         block_size: u32,
     ) -> crate::voice::OscParams {
         crate::voice::OscParams {
@@ -264,6 +265,7 @@ impl OscillatorParams {
             waveshaper_amount: self.waveshaper_amount.smoothed.next_step(block_size),
             phaseshaper: self.phaseshaper.value(),
             phaseshaper_amount: self.phaseshaper_amount.smoothed.next_step(block_size),
+            portamento_time,
         }
     }
 }
@@ -327,6 +329,17 @@ pub struct SynthPluginParams {
     pub octave_stretch: FloatParam,
     #[id = "bend_range"]
     pub bend_range: FloatParam,
+
+    #[id = "voice_count"]
+    pub voice_count: IntParam,
+    #[id = "unison"]
+    pub unison_count: IntParam,
+    #[id = "unison_detune"]
+    pub unison_detune: FloatParam,
+    #[id = "polyphony"]
+    pub legato: EnumParam<LegatoMode>,
+    #[id = "portamento"]
+    pub portamento: FloatParam,
 
     #[nested(group = "mod", id_prefix = "mod_osc1_")]
     pub osc1_fm_mod: OscMod,
@@ -447,6 +460,29 @@ impl Default for SynthPluginParams {
                 },
             )
             .with_step_size(1.0),
+
+            voice_count: IntParam::new("Voices", 32, IntRange::Linear { min: 1, max: 64 }),
+            unison_count: IntParam::new("Unison", 1, IntRange::Linear { min: 1, max: 16 }),
+            unison_detune: FloatParam::new(
+                "Unison Detune",
+                15.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit("%"),
+            legato: EnumParam::new("Legato", LegatoMode::Off),
+            portamento: FloatParam::new(
+                "Portamento",
+                0.0,
+                FloatRange::Skewed {
+                    min: 0.0,
+                    max: 10.0,
+                    factor: 0.5,
+                },
+            )
+            .with_unit(" s"),
 
             osc1_fm_mod: OscMod::new(1),
             osc2_fm_mod: OscMod::new(2),

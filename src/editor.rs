@@ -249,6 +249,7 @@ impl OscilloscopeWidget {
         osc_params.sample_rate = f32x8::splat(sample_rate);
         let mut oscillator = OscillatorBatch::new(0, &osc_params, 1.0);
         oscillator.frequency = f32x8::splat(freq);
+        oscillator.target_frequency = f32x8::splat(freq);
         oscillator.gain = f32x8::splat(1.0);
         Self {
             oscillator,
@@ -531,7 +532,7 @@ impl OscillatorWidget {
                     .push(Space::with_width(osc_env_spacing.into()))
                     .push({
                         let mut params = [OscParams::default(); 8];
-                        params[self.index] = osc_params.to_osc_params(100.0, 1.0, 0);
+                        params[self.index] = osc_params.to_osc_params(100.0, 1.0, 0.0, 0);
                         Canvas::new(OscilloscopeWidget::new(
                             1.0,
                             params.into(),
@@ -1308,10 +1309,15 @@ impl GlobalEnvelopeWidget {
 
 #[derive(Default)]
 struct GlobalParamWidget {
-    gain_slider_state: param_slider::State,
-    global_coarse_slider_state: param_slider::State,
-    octave_stretch_slider_state: param_slider::State,
-    bend_range_slider_state: param_slider::State,
+    gain_slider: param_slider::State,
+    global_coarse_slider: param_slider::State,
+    octave_stretch_slider: param_slider::State,
+    bend_range_slider: param_slider::State,
+    voice_count_slider: param_slider::State,
+    unison_slider: param_slider::State,
+    unison_detune_slider: param_slider::State,
+    legato_slider: param_slider::State,
+    portamento_slider: param_slider::State,
 }
 impl GlobalParamWidget {
     fn ui<'a>(&'a mut self, params: &'a SynthPluginParams) -> Column<'a, Message> {
@@ -1319,42 +1325,98 @@ impl GlobalParamWidget {
         let slider_width: Length = 60.into();
         let slider_font_size = 14;
         let font_size = 14;
-        title_bar()
-            .push(Space::with_height(14.into()))
-            .push(Text::new("Output Gain").size(font_size))
-            .push(
-                ParamSlider::new(&mut self.gain_slider_state, &params.gain)
-                    .height(slider_height)
-                    .width(slider_width)
-                    .text_size(slider_font_size)
-                    .map(Message::ParamUpdate),
-            )
-            .push(Text::new("Global Coarse").size(font_size))
-            .push(
-                ParamSlider::new(&mut self.global_coarse_slider_state, &params.global_coarse)
-                    .height(slider_height)
-                    .width(slider_width)
-                    .text_size(slider_font_size)
-                    .map(Message::ParamUpdate),
-            )
-            .push(Text::new("Octave Stretch").size(font_size))
-            .push(
-                ParamSlider::new(
-                    &mut self.octave_stretch_slider_state,
-                    &params.octave_stretch,
+        title_bar().push(Space::with_height(14.into())).push(
+            Row::new()
+                .spacing(8)
+                .push(
+                    Column::new()
+                        .width(slider_width)
+                        .push(Text::new("Output Gain").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.gain_slider, &params.gain)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Glob. Crs.").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.global_coarse_slider, &params.global_coarse)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Octave Size").size(font_size))
+                        .push(
+                            ParamSlider::new(
+                                &mut self.octave_stretch_slider,
+                                &params.octave_stretch,
+                            )
+                            .height(slider_height)
+                            .width(slider_width)
+                            .text_size(slider_font_size)
+                            .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Bend Range").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.bend_range_slider, &params.bend_range)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        ),
                 )
-                .height(slider_height)
-                .width(slider_width)
-                .text_size(slider_font_size)
-                .map(Message::ParamUpdate),
-            )
-            .push(Text::new("Bend Range").size(font_size))
-            .push(
-                ParamSlider::new(&mut self.bend_range_slider_state, &params.bend_range)
-                    .height(slider_height)
-                    .width(slider_width)
-                    .text_size(slider_font_size)
-                    .map(Message::ParamUpdate),
-            )
+                .push(
+                    Column::new()
+                        .align_items(Alignment::Start)
+                        .width(slider_width)
+                        .push(Text::new("Max Voices").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.voice_count_slider, &params.voice_count)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Unison").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.unison_slider, &params.unison_count)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Uni. Detune").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.unison_detune_slider, &params.unison_detune)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        )
+                        .push(Text::new("Legato").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.legato_slider, &params.legato)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        ),
+                )
+                .push(
+                    Column::new()
+                        .align_items(Alignment::Start)
+                        .width(slider_width)
+                        .push(Text::new("Portamento").size(font_size))
+                        .push(
+                            ParamSlider::new(&mut self.portamento_slider, &params.portamento)
+                                .height(slider_height)
+                                .width(slider_width)
+                                .text_size(slider_font_size)
+                                .map(Message::ParamUpdate),
+                        ),
+                ),
+        )
     }
 }
