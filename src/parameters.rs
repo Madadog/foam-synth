@@ -177,7 +177,7 @@ impl OscillatorParams {
                 1.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
-            release: FloatParam::new(format!("Osc{} Release", index + 1), 0.05, RELEASE_RANGE)
+            release: FloatParam::new(format!("Osc{} Release", index + 1), 0.5, RELEASE_RANGE)
                 .with_unit(" s"),
             feedback: FloatParam::new(
                 format!("Osc{} Feedback", index + 1),
@@ -479,7 +479,7 @@ impl Default for SynthPluginParams {
                 FloatRange::Skewed {
                     min: 0.0,
                     max: 10.0,
-                    factor: 0.5,
+                    factor: 0.4,
                 },
             )
             .with_unit(" s"),

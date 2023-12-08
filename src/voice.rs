@@ -194,14 +194,7 @@ impl VoiceList {
                         .voices
                             .iter_mut()
                             .filter(|voice| voice.note_id == note.id)
-                            .for_each(|voice| {
-                                voice.midi_id = voiceless_note.midi_index;
-                                voice.note_id = voiceless_note.id;
-                                voice.oscillators.midi_id = voiceless_note.midi_index;
-                                voice.age = 0;
-                                voice.released_time = None;
-                                voice.oscillators.release_time = None;
-                            }),
+                            .for_each(|voice| voice.move_to_new_note(voiceless_note.midi_index, voiceless_note.id, &osc_params)),
                     }
                     return;
                 }
@@ -292,12 +285,7 @@ impl VoiceList {
                 );
             }
             LegatoMode::On => {
-                stolen_voice.midi_id = midi_index;
-                stolen_voice.note_id = note_id;
-                stolen_voice.oscillators.midi_id = midi_index;
-                stolen_voice.age = 0;
-                stolen_voice.released_time = None;
-                stolen_voice.oscillators.release_time = None;
+                stolen_voice.move_to_new_note(midi_index, note_id, &osc_params)
             }
         }
     }
@@ -465,6 +453,15 @@ impl Voice {
             } else {
                 false
             }
+    }
+    pub fn move_to_new_note(&mut self, midi_index: u8, id: u64, osc_params: &OscParamsBatch) {
+        self.midi_id = midi_index;
+        self.note_id = id;
+        self.oscillators.midi_id = midi_index;
+        self.age = 0;
+        self.released_time = None;
+        self.oscillators.release_time = None;
+        self.oscillators.lerp_new_pitch(&osc_params);
     }
     pub fn block_update(&mut self, osc_params: &OscParamsBatch, voice_params: VoiceParams) {
         let mut osc_params = osc_params.clone();
@@ -982,6 +979,9 @@ impl OscillatorBatch {
             .fast_max(f32x8::splat(0.0))
     }
     pub fn update_pitch(&mut self, params: &OscParamsBatch) {
+        self.target_frequency = OscillatorBatch::get_pitch(self.midi_id, params);
+    }
+    pub fn lerp_new_pitch(&mut self, params: &OscParamsBatch) {
         self.frequency = self.get_lerped_frequency();
         self.frequency_lerp = f32x8::splat(0.0);
         self.target_frequency = OscillatorBatch::get_pitch(self.midi_id, params);
