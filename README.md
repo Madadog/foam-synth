@@ -1,5 +1,5 @@
 # Foam
-![Screenshot of UI](gui_v3.png)
+![Screenshot of UI](gui_v4.png)
 
 8 operator FM synth with a cross-oscillator modulation matrix, available in VST3 and CLAP plugin formats. Oscillator generation and modulation is SIMD accelerated (via [wide](https://github.com/lokathor/wide)).
 
@@ -48,7 +48,7 @@ Made for fun. This is basically a [Dexed](https://github.com/asb2m10/dexed) clon
 * Build-your-own algorithm with the FM matrix
 * Feedback on every oscillator
 * DAHDSR envelopes
-* More operators
+* 8 operators
 * More wave types
 * 32-bit floating point for all audio
 
@@ -77,10 +77,11 @@ The following file/s are additionally available under the ISC license (indicated
 ## TODO:
 
 * DSP:
-    * Legato, portamento
+    * Mono retrig and better portamento
     * Add noise source somewhere
     * Bandlimited oscillator toggle / multiple waves
         * AKA just turn it into a wavetable synth...
+        * Switch to integer phase instead of float
     * Add LFO and pitch envelope
     * RM modulation
     * Mod matrix
@@ -90,7 +91,6 @@ The following file/s are additionally available under the ISC license (indicated
     * Click/drag points on graphical envelope
     * MSEG modulators
     * Envelope slope controls?
-    * Precalculate table for tuning approximation?
     * Toggle oscillators on/off
     * Allow use of the filter in FM modulation
     * Allow picking keyscaling root key
