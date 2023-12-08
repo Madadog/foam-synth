@@ -51,7 +51,70 @@ pub mod interpolation {
             assert_eq!(catmull_rom((0.0, 1.0, 2.0, 3.0), 1.0), 2.0);
         }
     }
+
 }
+
+pub mod approximation {
+    use wide::{f32x8, i32x8};
+
+    #[inline]
+    pub fn poly_horner(a: &[f32], x: f32) -> f32 {
+        let mut y = a.last().unwrap().clone();
+
+        for n in a.iter().rev().skip(1) {
+            y = n + y * x;
+        }
+        
+        y
+    }
+    
+    #[inline]
+    pub fn exp2_floor(mut x: f32) -> (f32, f32) {
+        x += 127.;
+        let x_int = x as u32;
+        let x_fract = x - x_int as f32;
+        let y = f32::from_bits(x_int << 23);
+        (y, x_fract)
+    }
+    
+    #[inline]
+    /// Approximation of `2.0.powf(x)` ported from [Rack](https://github.com/VCVRack/Rack)
+    pub fn exp2_taylor5(x: f32) -> f32 {
+        let (yi, xf) = exp2_floor(x);
+        let a = [1.0, 0.69315169353961, 0.2401595990753, 0.055817908652, 0.008991698010, 0.001879100722];
+        let yf = poly_horner(&a, xf);
+        yi * yf
+    }
+    
+    #[inline]
+    pub fn poly_horner_x8(a: &[f32x8], x: f32x8) -> f32x8 {
+        let mut y = a.last().unwrap().clone();
+        
+        for n in a.iter().rev().skip(1) {
+            y = *n + y * x;
+        }
+        
+        y
+    }
+
+    #[inline]
+    pub fn exp2_floor_x8(mut x: f32x8) -> (f32x8, f32x8) {
+        x = x + 127.;
+        let x_int = x.trunc_int();
+        let x_fract = x - x_int.round_float();
+        let y: f32x8 = bytemuck::cast(x_int << 23);
+        (y, x_fract)
+    }
+    
+    #[inline]
+    pub fn exp2_taylor5_x8(x: f32x8) -> f32x8 {
+        let (yi, xf) = exp2_floor_x8(x);
+        let a = [f32x8::splat(1.0), f32x8::splat(0.69315169353961), f32x8::splat(0.2401595990753), f32x8::splat(0.055817908652), f32x8::splat(0.008991698010), f32x8::splat(0.001879100722)];
+        let yf = poly_horner_x8(&a, xf);
+        yi * yf
+    }
+}
+
 
 pub mod oscillators {
     use std::f32::consts::TAU;

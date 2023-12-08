@@ -9,7 +9,7 @@ use nih_plug::params::enums::Enum;
 use wide::*;
 
 use crate::{
-    dsp::interpolation::{lerp, lerpx8},
+    dsp::{interpolation::{lerp, lerpx8}, approximation::{exp2_taylor5, exp2_taylor5_x8}},
     svf_simper::{FilterType, SvfSimper, SvfSimperBatch},
 };
 
@@ -527,11 +527,10 @@ impl Voice {
         }
     }
     fn calc_filter_cutoff(midi_id: u8, voice_params: &VoiceParams, envelope: f32) -> f32 {
-        // let keyscaling = 2.0f32.powf((midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0);
         let keyscaling = (midi_id as f32 - 69.0) * voice_params.filter_keytrack / 12.0;
 
         (440.0
-            * 2.0f32.powf(
+            * exp2_taylor5(
                 (voice_params.filter_cutoff / 440.0).log2()
                     + keyscaling
                     + voice_params.filter_envelope_amount * 11.0 * envelope,
@@ -593,7 +592,7 @@ pub fn envelope(sample_rate: f32, time: u32, attack: f32, decay: f32, sustain: f
     if time < attack {
         time / attack
     } else if time < attack + decay {
-        (1.0 - ((time - attack) / decay)).powf(2.0) * (1.0 - sustain) + sustain
+        (1.0 - ((time - attack) / decay)).powi(2) * (1.0 - sustain) + sustain
     } else {
         sustain
     }
@@ -875,7 +874,6 @@ pub struct OscillatorBatch {
 impl OscillatorBatch {
     pub fn new(midi_id: u8, params: &OscParamsBatch, velocity: f32) -> Self {
         let frequency = OscillatorBatch::get_pitch(midi_id, params);
-        // let keyscaling = f32x8::splat(2.0f32.powf((midi_id as f32 - 69.0) * -params.keyscaling / 12.0));
         let keyscaling = f32x8::splat(2.0f32)
             .pow_f32x8(f32x8::splat(midi_id as f32 - 69.0) * -params.keyscaling / 12.0);
         Self {
@@ -943,7 +941,8 @@ impl OscillatorBatch {
         ) & time.cmp_lt(delay + attack);
         let hold_level =
             f32x8::splat(1.0) & time.cmp_lt(delay + attack + hold) & time.cmp_ge(delay + attack);
-        let decay_level = ((1.0 - ((time - delay - attack - hold) / decay)).powf(2.0)
+        let decay_curve = 1.0 - ((time - delay - attack - hold) / decay);
+        let decay_level = (decay_curve * decay_curve
             * (1.0 - sustain)
             + sustain)
             & time.cmp_lt(delay + attack + hold + decay)
@@ -960,17 +959,17 @@ impl OscillatorBatch {
         release_end_level: f32x8,
     ) -> f32x8 {
         let delta = time / sample_rate;
+        let t = (1.0 - delta / release)
+            .fast_max(0.0.into())
+            .fast_min(1.0.into());
         lerpx8(
             release_end_level,
             release_start_level,
-            (1.0 - delta / release)
-                .fast_max(0.0.into())
-                .fast_min(1.0.into())
-                .powf(2.0),
+            t * t,
         )
     }
     pub fn get_pitch(midi_id: u8, params: &OscParamsBatch) -> f32x8 {
-        (f32x8::splat(2.0).pow_f32x8(
+        (exp2_taylor5_x8(
             (midi_id as f32 + params.coarse + params.fine / 100.0 - 69.0)
                 / (12.0 / params.octave_stretch),
         ) * 440.0
